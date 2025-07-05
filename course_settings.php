@@ -27,7 +27,7 @@ class automaticbadges_course_form extends moodleform {
 }
 
 // Cargar config actual
-$record = $DB->get_record('local_automaticbadges_coursecfg', ['courseid' => $courseid]);
+$record = $DB->get_record('local_automatic_badges_coursecfg', ['courseid' => $courseid]);
 $default = $record ? ['enabled' => $record->enabled, 'id' => $courseid] : ['enabled' => 0, 'id' => $courseid];
 
 $showlist = false;
@@ -45,9 +45,9 @@ if ($mform->is_cancelled()) {
     ];
     if ($record) {
         $entry['id'] = $record->id;
-        $DB->update_record('local_automaticbadges_coursecfg', $entry);
+        $DB->update_record('local_automatic_badges_coursecfg', $entry);
     } else {
-        $DB->insert_record('local_automaticbadges_coursecfg', $entry);
+        $DB->insert_record('local_automatic_badges_coursecfg', $entry);
     }
 
     if ($entry['enabled']) {

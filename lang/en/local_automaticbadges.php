@@ -1,5 +1,5 @@
 <?php
-// /local/automaticbadges/lang/es/local_automaticbadges.php
+// /local/automaticbadges/lang/es/local_automatic_badges.php
 
 $string['pluginname'] = 'Insignias Automáticas';
 $string['enableall'] = 'Habilitar Insignias Automáticas (a nivel sitio)';

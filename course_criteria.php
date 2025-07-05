@@ -48,7 +48,7 @@ class automaticbadges_criteria_form extends moodleform {
 }
 
 // Cargar config actual si existe
-$criteria = $DB->get_record('local_automaticbadges_criteria', ['courseid' => $courseid]);
+$criteria = $DB->get_record('local_automatic_badges_criteria', ['courseid' => $courseid]);
 $default = $criteria
     ? ['grademin' => $criteria->grademin, 'badgeid' => $criteria->badgeid, 'id' => $courseid]
     : ['grademin' => 90, 'badgeid' => 0, 'id' => $courseid];
@@ -68,9 +68,9 @@ if ($form->is_cancelled()) {
 
     if ($criteria) {
         $entry['id'] = $criteria->id;
-        $DB->update_record('local_automaticbadges_criteria', $entry);
+        $DB->update_record('local_automatic_badges_criteria', $entry);
     } else {
-        $DB->insert_record('local_automaticbadges_criteria', $entry);
+        $DB->insert_record('local_automatic_badges_criteria', $entry);
     }
 
     redirect($PAGE->url, 'Criterio guardado correctamente.', 2);

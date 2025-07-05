@@ -1,5 +1,5 @@
 <?php
-namespace local_automaticbadges;
+namespace local_automatic_badges;
 
 defined('MOODLE_INTERNAL') || die();
 
@@ -16,7 +16,7 @@ class observer {
         }
 
         // Leer criterio
-        $criteria = $DB->get_record('local_automaticbadges_criteria', [
+        $criteria = $DB->get_record('local_automatic_badges_criteria', [
             'courseid' => $courseid,
             'enabled' => 1
         ]);

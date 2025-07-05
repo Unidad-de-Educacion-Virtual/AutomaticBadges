@@ -1,6 +1,6 @@
 <?php
 $capabilities = [
-    'local/automaticbadges:manage' => [
+    'local/automatic_badges:manage' => [
         'captype' => 'write',
         'contextlevel' => CONTEXT_COURSE,
         'archetypes' => [

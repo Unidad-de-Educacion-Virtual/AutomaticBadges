@@ -6,8 +6,8 @@ require_capability('moodle/site:config', $context);
 
 $PAGE->set_url(new moodle_url('/local/automaticbadges/index.php'));
 $PAGE->set_context($context);
-$PAGE->set_title(get_string('pluginname', 'local_automaticbadges'));
-$PAGE->set_heading(get_string('pluginname', 'local_automaticbadges'));
+$PAGE->set_title(get_string('pluginname', 'local_automatic_badges'));
+$PAGE->set_heading(get_string('pluginname', 'local_automatic_badges'));
 
 echo $OUTPUT->header();
 
@@ -16,8 +16,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && confirm_sesskey()) {
     $courseid = required_param('courseid', PARAM_INT);
     $enabled = optional_param('enabled', 0, PARAM_INT);
 
-    if ($DB->record_exists('local_automaticbadges_coursecfg', ['courseid' => $courseid])) {
-        $DB->update_record('local_automaticbadges_coursecfg', (object)[
+    if ($DB->record_exists('local_automatic_badges_coursecfg', ['courseid' => $courseid])) {
+        $DB->update_record('local_automatic_badges_coursecfg', (object)[
             'courseid' => $courseid,
             'enabled' => $enabled
         ]);
@@ -25,7 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && confirm_sesskey()) {
         $record = new stdClass();
         $record->courseid = $courseid;
         $record->enabled = $enabled;
-        $DB->insert_record('local_automaticbadges_coursecfg', $record);
+        $DB->insert_record('local_automatic_badges_coursecfg', $record);
     }
     echo html_writer::tag('div', 'Configuración guardada', ['class' => 'notifysuccess']);
 }
@@ -43,7 +43,7 @@ foreach ($courses as $course) {
     if ($course->id == SITEID) {
         continue;
     }
-    $enabled = $DB->get_field('local_automaticbadges_coursecfg', 'enabled', ['courseid' => $course->id], IGNORE_MISSING);
+    $enabled = $DB->get_field('local_automatic_badges_coursecfg', 'enabled', ['courseid' => $course->id], IGNORE_MISSING);
     $checked = $enabled ? 'checked' : '';
     echo html_writer::start_tag('tr');
     echo html_writer::tag('td', format_string($course->fullname));

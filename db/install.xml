@@ -1,33 +1,71 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<XMLDB PATH="local/automaticbadges/db" VERSION="2025060200" COMMENT="XMLDB file for local_automaticbadges plugin">
+<?xml version="1.0" encoding="UTF-8" ?>
+<XMLDB PATH="local/automatic_badges/db" VERSION="2025070300" COMMENT="Instalación de tablas del plugin automatic_badges" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../lib/xmldb/xmldb.xsd">
   <TABLES>
-    <TABLE NAME="local_automaticbadges_coursecfg" COMMENT="Configuración por curso para Insignias Automáticas">
+  
+    <!-- Tabla principal de reglas -->
+    <TABLE NAME="local_automatic_badges_rules" COMMENT="Reglas para asignar insignias automáticamente">
       <FIELDS>
-        <FIELD NAME="id"        TYPE="int"    LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
-        <FIELD NAME="courseid"  TYPE="int"    LENGTH="10" NOTNULL="true" DEFAULT="0"/>
-        <FIELD NAME="enabled"   TYPE="int"    LENGTH="1"  NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="courseid" TYPE="int" LENGTH="10" NOTNULL="true"/>
+        <FIELD NAME="badgeid" TYPE="int" LENGTH="10" NOTNULL="true"/>
+        <FIELD NAME="criterion_type" TYPE="char" LENGTH="50" NOTNULL="true"/>
+        <FIELD NAME="activityid" TYPE="int" LENGTH="10" NOTNULL="false"/>
+        <FIELD NAME="grade_min" TYPE="number" LENGTH="10" DECIMALS="2" NOTNULL="false"/>
+        <FIELD NAME="forum_post_count" TYPE="int" LENGTH="10" NOTNULL="false"/>
+        <FIELD NAME="enable_bonus" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="bonus_points" TYPE="number" LENGTH="10" DECIMALS="2" NOTNULL="false"/>
+        <FIELD NAME="bonus_target_activityid" TYPE="int" LENGTH="10" NOTNULL="false"/>
+        <FIELD NAME="notify_enabled" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="notify_message" TYPE="text" NOTNULL="false"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true"/>
       </FIELDS>
       <KEYS>
-        <KEY NAME="primary"      TYPE="primary"  FIELDS="id"/>
-        <KEY NAME="courseid_fk"  TYPE="foreign"  FIELDS="courseid" REFTABLE="course" REFFIELDS="id" ONDELETE="CASCADE"/>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
       </KEYS>
+      <INDEXES>
+        <INDEX NAME="courseid_idx" UNIQUE="false" FIELDS="courseid"/>
+        <INDEX NAME="badgeid_idx" UNIQUE="false" FIELDS="badgeid"/>
+      </INDEXES>
     </TABLE>
 
-<TABLE NAME="local_automaticbadges_criteria" COMMENT="Criterios automáticos por curso para otorgar insignias">
-    <FIELDS>
-        <FIELD NAME="id"         TYPE="int"    LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
-        <FIELD NAME="courseid"   TYPE="int"    LENGTH="10" NOTNULL="true"/>
-        <FIELD NAME="activityid" TYPE="int"    LENGTH="10" NOTNULL="false"/> <!-- puede ser NULL para criterio global -->
-        <FIELD NAME="grademin"   TYPE="number" LENGTH="10" DECIMALS="2" NOTNULL="true" DEFAULT="0"/> <!-- nota mínima -->
-        <FIELD NAME="badgeid"    TYPE="int"    LENGTH="10" NOTNULL="true"/> <!-- insignia a otorgar -->
-        <FIELD NAME="enabled"    TYPE="int"    LENGTH="1"  NOTNULL="true" DEFAULT="1"/> <!-- activo o no -->
-        <FIELD NAME="timemodified" TYPE="int"  LENGTH="10" NOTNULL="true"/> <!-- timestamp -->
-    </FIELDS>
-    <KEYS>
-        <KEY NAME="primary"       TYPE="primary"  FIELDS="id"/>
-        <KEY NAME="courseid_fk"   TYPE="foreign"  FIELDS="courseid" REFTABLE="course" REFFIELDS="id" ONDELETE="CASCADE"/>
-        <KEY NAME="badgeid_fk"    TYPE="foreign"  FIELDS="badgeid"  REFTABLE="badge"  REFFIELDS="id" ONDELETE="CASCADE"/>
-    </KEYS>
-</TABLE>
+    <!-- Tabla de log -->
+    <TABLE NAME="local_automatic_badges_log" COMMENT="Histórico de insignias otorgadas automáticamente">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true"/>
+        <FIELD NAME="badgeid" TYPE="int" LENGTH="10" NOTNULL="true"/>
+        <FIELD NAME="ruleid" TYPE="int" LENGTH="10" NOTNULL="true"/>
+        <FIELD NAME="courseid" TYPE="int" LENGTH="10" NOTNULL="true"/>
+        <FIELD NAME="timeissued" TYPE="int" LENGTH="10" NOTNULL="true"/>
+        <FIELD NAME="bonus_applied" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="bonus_value" TYPE="number" LENGTH="10" DECIMALS="2" NOTNULL="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="userid_idx" UNIQUE="false" FIELDS="userid"/>
+        <INDEX NAME="badgeid_idx" UNIQUE="false" FIELDS="badgeid"/>
+        <INDEX NAME="ruleid_idx" UNIQUE="false" FIELDS="ruleid"/>
+      </INDEXES>
+    </TABLE>
+
+    <!-- Tabla de configuraciones -->
+    <TABLE NAME="local_automatic_badges_settings" COMMENT="Configuraciones por curso">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="courseid" TYPE="int" LENGTH="10" NOTNULL="true"/>
+        <FIELD NAME="setting_name" TYPE="char" LENGTH="100" NOTNULL="true"/>
+        <FIELD NAME="setting_value" TYPE="text" NOTNULL="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="courseid_idx" UNIQUE="false" FIELDS="courseid"/>
+      </INDEXES>
+    </TABLE>
+
   </TABLES>
 </XMLDB>

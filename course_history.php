@@ -13,10 +13,10 @@ require_capability('moodle/course:update', $context);
 
 $PAGE->set_url(new moodle_url('/local/automaticbadges/course_history.php', ['id' => $courseid]));
 $PAGE->set_context($context);
-$PAGE->set_title(get_string('coursenode_subhistory', 'local_automaticbadges'));
+$PAGE->set_title(get_string('coursenode_subhistory', 'local_automatic_badges'));
 $PAGE->set_heading(format_string($course->fullname));
 
 echo $OUTPUT->header();
-echo $OUTPUT->heading(get_string('coursenode_subhistory', 'local_automaticbadges'));
+echo $OUTPUT->heading(get_string('coursenode_subhistory', 'local_automatic_badges'));
 echo html_writer::tag('p', 'Aquí iría el historial de las insignias otorgadas en este curso.');
 echo $OUTPUT->footer();

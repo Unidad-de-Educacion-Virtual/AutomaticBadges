@@ -11,7 +11,7 @@ defined('MOODLE_INTERNAL') || die();
  * @param stdClass             $course      Objeto del curso (id, fullname, etc.).
  * @param context_course       $context     Contexto del curso.
  */
-function local_automaticbadges_extend_navigation_course(navigation_node $parentnode, stdClass $course, context_course $context) {
+function local_automatic_badges_extend_navigation_course(navigation_node $parentnode, stdClass $course, context_course $context) {
     // 1) Verificamos capacidad (por ejemplo, que el usuario pueda editar el curso).
     if (!has_capability('moodle/course:update', $context)) {
         return;
@@ -22,7 +22,7 @@ function local_automaticbadges_extend_navigation_course(navigation_node $parentn
 
     // 3) Creamos un nodo padre “Insignias Automáticas” (primero definimos el icono y el texto).
     $icon = new pix_icon('i/certificate', ''); // ícono genérico de certificado
-    $title = get_string('coursenode_title', 'local_automaticbadges');
+    $title = get_string('coursenode_title', 'local_automatic_badges');
 
     $node = navigation_node::create(
         $title,
@@ -40,7 +40,7 @@ function local_automaticbadges_extend_navigation_course(navigation_node $parentn
     // a) “Historial de Insignias”
     $urlhistory = new moodle_url('/local/automaticbadges/course_history.php', ['id' => $course->id]);
     $subnode2 = navigation_node::create(
-        get_string('coursenode_subhistory', 'local_automaticbadges'),
+        get_string('coursenode_subhistory', 'local_automatic_badges'),
         $urlhistory,
         navigation_node::TYPE_CUSTOM,
         null,
@@ -51,7 +51,7 @@ function local_automaticbadges_extend_navigation_course(navigation_node $parentn
 
     $urlcriteria = new moodle_url('/local/automaticbadges/course_criteria.php', ['id' => $course->id]);
 $subnode3 = navigation_node::create(
-    get_string('coursenode_subcriteria', 'local_automaticbadges'),
+    get_string('coursenode_subcriteria', 'local_automatic_badges'),
     $urlcriteria,
     navigation_node::TYPE_CUSTOM,
     null,

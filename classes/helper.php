@@ -1,12 +1,12 @@
 <?php
-namespace local_automaticbadges;
+namespace local_automatic_badges;
 defined('MOODLE_INTERNAL') || die();
 
 class helper {
 
     /**
      * Comprueba si el curso $courseid tiene marcada la casilla customfield 
-     * “automaticbadges_enabled”.
+     * “automatic_badges_enabled”.
      */
     public static function is_enabled_course(int $courseid): bool {
         // Primero recuperamos el objeto curso
@@ -19,7 +19,7 @@ class helper {
         $datarecords = $handler->get_instance_data($course);
 
         foreach ($datarecords as $fielddata) {
-            if ($fielddata->get_field()->get('shortname') === 'automaticbadges_enabled') {
+            if ($fielddata->get_field()->get('shortname') === 'automatic_badges_enabled') {
                 // El valor del campo booleando es 0 o 1
                 return (bool) $fielddata->get_value();
             }
