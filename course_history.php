@@ -1,5 +1,5 @@
 <?php
-// /local/automaticbadges/course_history.php
+// /local/automatic_badges/course_history.php
 
 require_once(__DIR__ . '/../../config.php');
 require_once($CFG->libdir . '/adminlib.php');
@@ -11,7 +11,7 @@ $context  = context_course::instance($courseid);
 require_login($courseid);
 require_capability('moodle/course:update', $context);
 
-$PAGE->set_url(new moodle_url('/local/automaticbadges/course_history.php', ['id' => $courseid]));
+$PAGE->set_url(new moodle_url('/local/automatic_badges/course_history.php', ['id' => $courseid]));
 $PAGE->set_context($context);
 $PAGE->set_title(get_string('coursenode_subhistory', 'local_automatic_badges'));
 $PAGE->set_heading(format_string($course->fullname));

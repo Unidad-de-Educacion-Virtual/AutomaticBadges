@@ -4,12 +4,18 @@ require_login();
 $context = context_system::instance();
 require_capability('moodle/site:config', $context);
 
-$PAGE->set_url(new moodle_url('/local/automaticbadges/index.php'));
+$PAGE->set_url(new moodle_url('/local/automatic_badges/index.php'));
 $PAGE->set_context($context);
 $PAGE->set_title(get_string('pluginname', 'local_automatic_badges'));
 $PAGE->set_heading(get_string('pluginname', 'local_automatic_badges'));
 
 echo $OUTPUT->header();
+
+echo $OUTPUT->single_button(
+    new moodle_url('/local/automatic_badges/purge_cache.php'),
+    'Purgar caché',
+    'post'
+);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && confirm_sesskey()) {
     global $DB;

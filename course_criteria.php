@@ -7,9 +7,9 @@ $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
 $context = context_course::instance($courseid);
 
 require_login($courseid);
-require_capability('local/automaticbadges:manage', $context); // Usa tu capability propia
+require_capability('local/automatic_badges:manage', $context); // Usa tu capability propia
 
-$PAGE->set_url(new moodle_url('/local/automaticbadges/course_criteria.php', ['id' => $courseid]));
+$PAGE->set_url(new moodle_url('/local/automatic_badges/course_criteria.php', ['id' => $courseid]));
 $PAGE->set_context($context);
 $PAGE->set_title('Criterios de Insignias Automáticas');
 $PAGE->set_heading(format_string($course->fullname));

@@ -18,36 +18,46 @@ class rule_engine {
         global $DB;
 
         if ($rule->criterion_type === 'grade') {
-            if ($rule->activityid) {
-                // Verificar esa actividad
-                $grade = self::get_grade($userid, $rule->activityid);
-                return ($grade >= $rule->grade_min);
-            } else {
-                // Verificar todas las actividades calificables
-                $activities = self::get_all_graded_activities($rule->courseid);
-                foreach ($activities as $activity) {
-                    $grade = self::get_grade($userid, $activity->id);
-                    if ($grade >= $rule->grade_min) {
-                        return true;
-                    }
+            if (!empty($rule->activityid)) {
+                $grade = self::get_grade_for_cmid($rule->courseid, $userid, $rule->activityid);
+                if ($grade === null) {
+                    return false;
                 }
-                return false;
+                return ($grade >= (float)$rule->grade_min);
             }
+            // Sin actividad específica, no evaluamos aún
+            return false;
         }
 
-        // Otros tipos de criterio aquí
+        // Otros tipos de criterio: por implementar (forum, submission)
         return false;
     }
 
-    // Ejemplo: función auxiliar
-    private static function get_grade($userid, $activityid) {
-        // Aquí iría la lógica para obtener la nota de un usuario en una actividad
-        // Devuelve número decimal
-        return 100; // Ejemplo fijo
-    }
+    private static function get_grade_for_cmid(int $courseid, int $userid, int $cmid): ?float {
+        global $DB;
+        $cm = get_coursemodule_from_id(null, $cmid, $courseid, false, IGNORE_MISSING);
+        if (!$cm) {
+            return null;
+        }
 
-    private static function get_all_graded_activities($courseid) {
-        // Aquí usarías get_fast_modinfo y demás APIs
-        return [];
+        $modname = $cm->modname; // e.g., 'assign', 'quiz'
+        $instanceid = $cm->instance;
+
+        if (!function_exists('grade_get_grades')) {
+            require_once($GLOBALS['CFG']->libdir . '/gradelib.php');
+        }
+
+        $grades = grade_get_grades($courseid, 'mod', $modname, $instanceid, $userid);
+        if (empty($grades->items) || empty($grades->items[0]->grades)) {
+            return null;
+        }
+        $item = $grades->items[0];
+        $usergrade = $item->grades[$userid] ?? null;
+        if (!$usergrade || !isset($usergrade->grade)) {
+            return null;
+        }
+        // Normalizar contra escala máxima si está disponible
+        $grade = (float)$usergrade->grade;
+        return $grade;
     }
 }

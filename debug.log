@@ -1,0 +1,45 @@
+[22-Jul-2025 20:04:16 America/Bogota] PRUEBA DE LOG - FUNCIONA
+[22-Jul-2025 20:06:01 America/Bogota] PRUEBA DE LOG - FUNCIONA
+[22-Jul-2025 20:07:01 America/Bogota] PRUEBA DE LOG - FUNCIONA
+[22-Jul-2025 20:09:14 America/Bogota] PRUEBA DE LOG - FUNCIONA
+[22-Jul-2025 20:09:19 America/Bogota] PRUEBA DE LOG - FUNCIONA
+[22-Jul-2025 20:12:19 America/Bogota] PRUEBA DE LOG - FUNCIONA
+[22-Jul-2025 20:12:25 America/Bogota] PRUEBA DE LOG - FUNCIONA
+[22-Jul-2025 20:17:05 America/Bogota] PRUEBA DE LOG - FUNCIONA
+[22-Jul-2025 20:18:03 America/Bogota] PRUEBA DE LOG - FUNCIONA
+[22-Jul-2025 20:20:54 America/Bogota] PRUEBA DE LOG - FUNCIONA
+[22-Jul-2025 20:20:54 America/Bogota] Default exception handler: Excepción - mysqli::real_escape_string(): Argument #1 ($string) must be of type string, array given Debug: 
+Error code: generalexceptionmessage
+* line 1231 of \lib\dml\mysqli_native_moodle_database.php: TypeError thrown
+* line 1231 of \lib\dml\mysqli_native_moodle_database.php: call to mysqli->real_escape_string()
+* line 1360 of \lib\dml\mysqli_native_moodle_database.php: call to mysqli_native_moodle_database->emulate_bound_params()
+* line 318 of \lib\badgeslib.php: call to mysqli_native_moodle_database->get_records_sql()
+* line 37 of \local\automatic_badges\forms\form_add_rule.php: call to badges_get_badges()
+* line 217 of \lib\formslib.php: call to local_automatic_badges_add_rule_form->definition()
+* line 34 of \local\automatic_badges\course_settings.php: call to moodleform->__construct()
+
+[18-Aug-2025 19:37:10 America/Bogota] Default exception handler: Un parámetro necesario (id) faltaba Debug: 
+Error code: missingparam
+* line 574 of \lib\classes\param.php: core\exception\moodle_exception thrown
+* line 452 of \lib\classes\param.php: call to core\param->get_request_parameter()
+* line 646 of \lib\moodlelib.php: call to core\param->required_param()
+* line 4 of \local\automatic_badges\course_settings.php: call to required_param()
+
+[18-Aug-2025 19:39:57 America/Bogota] Default exception handler: Un parámetro necesario (id) faltaba Debug: 
+Error code: missingparam
+* line 574 of \lib\classes\param.php: core\exception\moodle_exception thrown
+* line 452 of \lib\classes\param.php: call to core\param->get_request_parameter()
+* line 646 of \lib\moodlelib.php: call to core\param->required_param()
+* line 4 of \local\automatic_badges\course_settings.php: call to required_param()
+
+[17-Sep-2025 13:33:14 Europe/Berlin] PHP Warning:  Undefined array key "token" in C:\xampp\htdocs\app_bascula\app\index.php on line 3
+[17-Sep-2025 13:45:43 Europe/Berlin] PHP Warning:  readfile(C:/xampp/htdocs/bascula-lector/libreria/import/librerias.php): Failed to open stream: No such file or directory in C:\xampp\htdocs\app_bascula\LectoresBascula\vista\Lector_Bascula.php on line 19
+[17-Sep-2025 13:45:52 Europe/Berlin] PHP Warning:  readfile(C:/xampp/htdocs/bascula-lector/libreria/import/librerias.php): Failed to open stream: No such file or directory in C:\xampp\htdocs\app_bascula\LectoresBascula\vista\Lector_Bascula.php on line 19
+[18-Sep-2025 19:20:12 Europe/Berlin] PHP Warning:  readfile(C:/xampp/htdocs/bascula-lector/libreria/import/librerias.php): Failed to open stream: No such file or directory in C:\xampp\htdocs\app_bascula\LectoresBascula\vista\Lector_Bascula.php on line 19
+[21-Sep-2025 00:07:33 America/Bogota] PHP Warning:  Undefined variable $mform in C:\xampp\htdocs\moodle\local\automatic_badges\forms\form_add_rule.php on line 13
+[21-Sep-2025 00:07:33 America/Bogota] Default exception handler: Excepción - Call to a member function addElement() on null Debug: 
+Error code: generalexceptionmessage
+* line 13 of \local\automatic_badges\forms\form_add_rule.php: Error thrown
+* line 217 of \lib\formslib.php: call to local_automatic_badges_add_rule_form->definition()
+* line 36 of \local\automatic_badges\course_settings.php: call to moodleform->__construct()
+

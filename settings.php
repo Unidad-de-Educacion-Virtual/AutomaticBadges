@@ -80,8 +80,6 @@ if ($hassiteconfig) {
         )
     );
     
-
-
     // Registrar la página de configuración
     $ADMIN->add('localplugins', $settings);
 }
