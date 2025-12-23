@@ -2,3 +2,53 @@
     display: inline-block;
     width: 45%;
 }
+
+.local-automatic-badges-wrapper {
+    max-width: 100%;
+}
+
+.local-automatic-badges-actions {
+    margin-bottom: 1.5rem;
+}
+
+.local-automatic-badges-section {
+    margin-bottom: 2.5rem;
+}
+
+.local-automatic-badges-subtitle {
+    margin-bottom: 1rem;
+}
+
+.local-automatic-badges-table {
+    margin-bottom: 0;
+}
+
+.local-automatic-badges-pagination {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 2rem;
+}
+
+.local-automatic-badges-pagination__item {
+    display: inline-flex;
+}
+
+.local-automatic-badges-wrapper .collapsible-badges .btn {
+    margin-bottom: 1rem;
+}
+
+.local-automatic-badges-wrapper .collapsible-badges .collapse {
+    margin-top: 1rem;
+}
+.local-automatic-badges-actioncell {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.local-automatic-badges-actioncell__edit .btn,
+.local-automatic-badges-toggleform .btn {
+    margin-bottom: 0;
+}
+.local-automatic-badges-toggleform {
+    display: inline-block;
+}

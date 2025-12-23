@@ -1,38 +1,42 @@
 <?php
 namespace local_automatic_badges;
+
 defined('MOODLE_INTERNAL') || die();
 
 class helper {
 
     /**
-     * Comprueba si el curso $courseid tiene marcada la casilla customfield 
-     * “automatic_badges_enabled”.
+     * Devuelve true si el curso tiene habilitada la automatización (campo personalizado).
+     * Cambia $shortname si usas otro nombre de campo.
+     *
+     * @param int|object $courseOrId  ID del curso o stdClass con ->id
      */
-    public static function is_enabled_course(int $courseid): bool {
-        // Primero recuperamos el objeto curso
-        $course = get_course($courseid);
+    public static function is_enabled_course($courseOrId, string $shortname = 'automatic_badges_enabled'): bool {
+        // Normaliza a ID entero
+        $courseid = is_object($courseOrId) ? (int)$courseOrId->id : (int)$courseOrId;
 
-        // Creamos el handler de campos de curso
-        $handler = \core_course\customfield\course_handler::create();
+        try {
+            // Para cursos, usa el handler específico:
+            $handler = \core_course\customfield\course_handler::create();
 
-        // Obtenemos todas las instancias de campo para este curso
-        $datarecords = $handler->get_instance_data($course);
+            // true = solo visibles (ajusta a false si necesitas todos).
+            $dataitems = $handler->get_instance_data($courseid, true);
 
-        foreach ($datarecords as $fielddata) {
-            if ($fielddata->get_field()->get('shortname') === 'automatic_badges_enabled') {
-                // El valor del campo booleando es 0 o 1
-                return (bool) $fielddata->get_value();
+            foreach ($dataitems as $data) {
+                $field = $data->get_field();
+                if (!$field) {
+                    continue;
+                }
+                if ($field->get('shortname') === $shortname) {
+                    $value = $data->get_value();
+                    // Normaliza a booleano
+                    return in_array((string)$value, ['1','true','on','yes'], true) || $value === 1 || $value === true;
+                }
             }
+        } catch (\Throwable $e) {
+            // No rompas la tarea; deja rastro en el log del cron.
+            mtrace('is_enabled_course error (courseid '.$courseid.'): '.$e->getMessage());
         }
-        // Si no se encontró el campo, asumimos “no habilitado”
         return false;
-    }
-
-    /**
-     * Devuelve la lista de usuarios matriculados (rol estudiante) en $courseid.
-     */
-    public static function get_students_in_course(int $courseid): array {
-        $context = \context_course::instance($courseid);
-        return get_enrolled_users($context, 'moodle/course:view'); 
     }
 }

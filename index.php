@@ -1,67 +1,105 @@
-<?php
+﻿<?php
+// local/automatic_badges/index.php
+
+// === Dependencias y capacidades ===
 require('../../config.php');
 require_login();
+
 $context = context_system::instance();
 require_capability('moodle/site:config', $context);
 
+// === Configuracion de la pagina ===
 $PAGE->set_url(new moodle_url('/local/automatic_badges/index.php'));
 $PAGE->set_context($context);
+$PAGE->set_pagelayout('admin');
 $PAGE->set_title(get_string('pluginname', 'local_automatic_badges'));
 $PAGE->set_heading(get_string('pluginname', 'local_automatic_badges'));
 
+// === Encabezado y accesos directos ===
 echo $OUTPUT->header();
-
 echo $OUTPUT->single_button(
     new moodle_url('/local/automatic_badges/purge_cache.php'),
-    'Purgar caché',
+    get_string('purgecache', 'local_automatic_badges'),
     'post'
 );
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && confirm_sesskey()) {
-    global $DB;
-    $courseid = required_param('courseid', PARAM_INT);
-    $enabled = optional_param('enabled', 0, PARAM_INT);
+// === Datos actuales de configuracion ===
+global $DB;
+$current = $DB->get_records_menu('local_automatic_badges_coursecfg', null, '', 'courseid, enabled');
+$courses = get_courses();
 
-    if ($DB->record_exists('local_automatic_badges_coursecfg', ['courseid' => $courseid])) {
-        $DB->update_record('local_automatic_badges_coursecfg', (object)[
-            'courseid' => $courseid,
-            'enabled' => $enabled
-        ]);
-    } else {
-        $record = new stdClass();
-        $record->courseid = $courseid;
-        $record->enabled = $enabled;
-        $DB->insert_record('local_automatic_badges_coursecfg', $record);
+// === Procesamiento del formulario ===
+if (optional_param('savecfg', 0, PARAM_BOOL) && confirm_sesskey()) {
+    $enabledarr = optional_param_array('enabled', [], PARAM_BOOL);
+
+    foreach ($courses as $course) {
+        if ((int)$course->id === (int)SITEID) {
+            continue; // omitir el curso del sitio
+        }
+
+        $enabled = !empty($enabledarr[$course->id]) ? 1 : 0;
+
+        if (isset($current[$course->id])) {
+            $record = $DB->get_record('local_automatic_badges_coursecfg', ['courseid' => $course->id], '*', MUST_EXIST);
+            $record->enabled = $enabled;
+            $DB->update_record('local_automatic_badges_coursecfg', $record);
+        } else {
+            $record = (object)[
+                'courseid' => $course->id,
+                'enabled'  => $enabled
+            ];
+            $DB->insert_record('local_automatic_badges_coursecfg', $record);
+        }
     }
-    echo html_writer::tag('div', 'Configuración guardada', ['class' => 'notifysuccess']);
+
+    $current = $DB->get_records_menu('local_automatic_badges_coursecfg', null, '', 'courseid, enabled');
+    echo $OUTPUT->notification(get_string('configsaved', 'local_automatic_badges'), 'notifysuccess');
 }
 
-$courses = get_courses();
-echo html_writer::start_tag('form', ['method' => 'post']);
+// === Construccion del formulario ===
+echo html_writer::start_tag('form', [
+    'method' => 'post',
+    'action' => (new moodle_url('/local/automatic_badges/index.php'))->out(false)
+]);
 echo html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'sesskey', 'value' => sesskey()]);
-echo html_writer::start_tag('table', ['class' => 'generaltable']);
-echo html_writer::start_tag('tr');
-echo html_writer::tag('th', 'Curso');
-echo html_writer::tag('th', 'Activado');
-echo html_writer::end_tag('tr');
+echo html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'savecfg', 'value' => 1]);
 
+echo html_writer::start_tag('table', ['class' => 'generaltable']);
+echo html_writer::start_tag('thead');
+echo html_writer::start_tag('tr');
+echo html_writer::tag('th', get_string('coursecolumn', 'local_automatic_badges'));
+echo html_writer::tag('th', get_string('enabledcolumn', 'local_automatic_badges'));
+echo html_writer::end_tag('tr');
+echo html_writer::end_tag('thead');
+
+// === Listado de cursos ===
+echo html_writer::start_tag('tbody');
 foreach ($courses as $course) {
-    if ($course->id == SITEID) {
-        continue;
+    if ((int)$course->id === (int)SITEID) {
+        continue; // no mostrar el curso del sitio
     }
-    $enabled = $DB->get_field('local_automatic_badges_coursecfg', 'enabled', ['courseid' => $course->id], IGNORE_MISSING);
-    $checked = $enabled ? 'checked' : '';
+    $isenabled = !empty($current[$course->id]);
+
     echo html_writer::start_tag('tr');
     echo html_writer::tag('td', format_string($course->fullname));
+
     echo html_writer::start_tag('td');
-    echo html_writer::empty_tag('input', ['type' => 'checkbox', 'name' => 'enabled', 'value' => 1, $enabled ? 'checked' : '']);
-    echo html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'courseid', 'value' => $course->id]);
+    echo html_writer::empty_tag('input', [
+        'type'    => 'checkbox',
+        'name'    => "enabled[{$course->id}]",
+        'value'   => 1,
+        'checked' => $isenabled ? 'checked' : null
+    ]);
     echo html_writer::end_tag('td');
+
     echo html_writer::end_tag('tr');
 }
-
+echo html_writer::end_tag('tbody');
 echo html_writer::end_tag('table');
-echo html_writer::empty_tag('input', ['type' => 'submit', 'value' => 'Guardar']);
+
+echo html_writer::empty_tag('input', ['type' => 'submit', 'value' => get_string('savesettings', 'local_automatic_badges'), 'class' => 'btn btn-primary']);
 echo html_writer::end_tag('form');
 
+// === Cierre de la pagina ===
 echo $OUTPUT->footer();
+

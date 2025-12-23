@@ -23,7 +23,7 @@ class award_badges_task extends \core\task\scheduled_task {
                 continue;
             }
 
-            $rules = $DB->get_records('local_automatic_badges_rules', ['courseid' => $courseid]);
+            $rules = $DB->get_records('local_automatic_badges_rules', ['courseid' => $courseid, 'enabled' => 1]);
             if (empty($rules)) {
                 continue;
             }

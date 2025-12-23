@@ -25,6 +25,7 @@ function xmldb_local_automatic_badges_install() {
     $rule->courseid = 1;           // Asegúrate de que el curso 1 existe
     $rule->badgeid = 1;            // Asegúrate de que la insignia 1 existe
     $rule->criterion_type = 'grade';
+    $rule->enabled = 1;
     $rule->activityid = null;      // NULL = cualquier actividad calificable
     $rule->grade_min = 90;
     $rule->forum_post_count = null;
