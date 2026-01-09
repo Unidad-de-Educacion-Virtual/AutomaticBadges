@@ -46,8 +46,19 @@ $string['notifymessage_help'] = 'Mensaje opcional para los participantes al reci
 $string['saverule'] = 'Guardar regla';
 $string['grademin'] = 'Calificacion minima';
 $string['grademin_help'] = 'Define la calificacion minima requerida en la actividad vinculada cuando se usa el criterio por nota.';
+$string['gradeoperator'] = 'Operador de comparación';
+$string['gradeoperator_help'] = 'Selecciona cómo comparar la calificación del estudiante con el valor mínimo.';
+$string['operator_gte'] = 'Mayor o igual que (≥)';
+$string['operator_gt'] = 'Mayor que (>)';
+$string['operator_lte'] = 'Menor o igual que (≤)';
+$string['operator_lt'] = 'Menor que (<)';
+$string['operator_eq'] = 'Igual a (=)';
 $string['ruleenabledlabel'] = 'Habilitar regla';
 $string['ruleenabledlabel_help'] = 'Solo las reglas habilitadas son evaluadas por la tarea automatica.';
+$string['isglobalrule'] = 'Aplicar a todas las actividades del tipo (Regla global)';
+$string['isglobalrule_help'] = 'Si esta habilitado, esta regla se aplicara a todas las actividades del tipo seleccionado en el curso, en lugar de una sola actividad especifica.';
+$string['activitytype'] = 'Tipo de actividad';
+$string['activitytype_help'] = 'Selecciona el tipo de actividad al que se aplicara esta regla global (tareas, cuestionarios, foros, etc).';
 $string['forumpostcount'] = 'Respuestas necesarias en el foro';
 $string['forumpostcount_help'] = 'Indica cuantas respuestas debe publicar el participante en el foro seleccionado para otorgar la insignia.';
 $string['forumpostcounterror'] = 'Ingresa un numero positivo de respuestas requeridas.';
@@ -87,3 +98,13 @@ $string['awardbadgestask'] = 'Tarea de otorgamiento automatico de insignias';
 // Varios.
 $string['editfrommenu'] = 'Editar insignia desde el menu personalizado';
 $string['historyplaceholder'] = 'Aqui iria el historial de insignias otorgadas en este curso.';
+
+
+$string['rulepreview'] = 'Resumen de la regla';
+$string['rulepreviewtitle'] = 'Así quedará configurada:';
+$string['dryrun'] = 'Modo prueba (no otorgar insignias)';
+$string['testrule'] = 'Probar regla';
+$string['bonusvalueerror'] = 'Los puntos extra deben ser un número válido y no negativo.';
+$string['requiresubmitted'] = 'Requerir entrega/envío';
+$string['requiregraded'] = 'Requerir calificación publicada';
+$string['dryrunresult'] = 'Usuarios que cumplirían la regla: {$a}';

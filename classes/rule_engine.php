@@ -26,6 +26,11 @@ class rule_engine {
             return false;
         }
 
+        // Si es una regla global, evaluar contra todas las actividades del tipo
+        if (!empty($rule->is_global_rule)) {
+            return self::check_global_rule($rule, $userid);
+        }
+
         switch ($rule->criterion_type) {
             case 'grade':
                 return self::check_grade_rule($rule, $userid);
@@ -36,6 +41,103 @@ class rule_engine {
             default:
                 return false;
         }
+    }
+
+    /**
+     * Evalúa reglas globales contra todas las actividades del tipo especificado.
+     *
+     * @param \stdClass $rule
+     * @param int $userid
+     * @return bool
+     */
+    private static function check_global_rule(\stdClass $rule, int $userid): bool {
+        global $DB;
+
+        if (empty($rule->activity_type) || empty($rule->courseid)) {
+            return false;
+        }
+
+        $courseid = (int)$rule->courseid;
+        $activitytype = $rule->activity_type;
+        $criterion = $rule->criterion_type;
+
+        // Obtener todas las actividades del tipo especificado en el curso
+        $modinfo = get_fast_modinfo($courseid);
+        $activities = [];
+
+        foreach ($modinfo->get_cms() as $cm) {
+            if ($cm->modname === $activitytype && $cm->uservisible) {
+                $activities[] = $cm->id;
+            }
+        }
+
+        if (empty($activities)) {
+            return false;
+        }
+
+        // Evaluar la regla contra todas las actividades
+        switch ($criterion) {
+            case 'grade':
+                return self::check_global_grade_rule($rule, $userid, $activities);
+            case 'forum':
+                return self::check_global_forum_rule($rule, $userid, $activities);
+            default:
+                return false;
+        }
+    }
+
+    /**
+     * Evalúa regla global de calificación contra múltiples actividades.
+     *
+     * @param \stdClass $rule
+     * @param int $userid
+     * @param array $cmids
+     * @return bool
+     */
+    private static function check_global_grade_rule(\stdClass $rule, int $userid, array $cmids): bool {
+        if (!isset($rule->grade_min) || empty($cmids)) {
+            return false;
+        }
+
+        $grademin = (float)$rule->grade_min;
+        $operator = $rule->grade_operator ?? '>=';
+        $courseid = (int)$rule->courseid;
+
+        // Verificar que al menos una actividad cumpla el criterio
+        foreach ($cmids as $cmid) {
+            $currentgrade = self::get_grade_for_cmid($courseid, $userid, $cmid);
+            if ($currentgrade !== null && self::compare_grade($currentgrade, $operator, $grademin)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Evalúa regla global de foro contra múltiples actividades.
+     *
+     * @param \stdClass $rule
+     * @param int $userid
+     * @param array $cmids
+     * @return bool
+     */
+    private static function check_global_forum_rule(\stdClass $rule, int $userid, array $cmids): bool {
+        if (!isset($rule->forum_post_count) || empty($cmids)) {
+            return false;
+        }
+
+        $requiredposts = (int)$rule->forum_post_count;
+        $courseid = (int)$rule->courseid;
+
+        // Contar posts totales en todos los foros del curso
+        $totalposits = 0;
+        foreach ($cmids as $cmid) {
+            $postcount = self::get_forum_reply_count($courseid, $cmid, $userid);
+            $totalposits += $postcount;
+        }
+
+        return $totalposits >= $requiredposts;
     }
 
     /**
@@ -55,7 +157,37 @@ class rule_engine {
         }
 
         $currentgrade = self::get_grade_for_cmid((int)$rule->courseid, $userid, (int)$rule->activityid);
-        return $currentgrade !== null && $currentgrade >= (float)$rule->grade_min;
+        if ($currentgrade === null) {
+            return false;
+        }
+        
+        $operator = $rule->grade_operator ?? '>=';
+        return self::compare_grade($currentgrade, $operator, (float)$rule->grade_min);
+    }
+    
+    /**
+     * Compara una calificación usando el operador especificado.
+     *
+     * @param float $grade Calificación del estudiante
+     * @param string $operator Operador de comparación (>=, >, <=, <, ==)
+     * @param float $threshold Valor de referencia
+     * @return bool
+     */
+    private static function compare_grade(float $grade, string $operator, float $threshold): bool {
+        switch ($operator) {
+            case '>=':
+                return $grade >= $threshold;
+            case '>':
+                return $grade > $threshold;
+            case '<=':
+                return $grade <= $threshold;
+            case '<':
+                return $grade < $threshold;
+            case '==':
+                return abs($grade - $threshold) < 0.01; // Float comparison with tolerance
+            default:
+                return $grade >= $threshold; // Default to >= for backward compatibility
+        }
     }
 
     /**

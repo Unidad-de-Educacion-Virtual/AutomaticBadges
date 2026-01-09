@@ -46,6 +46,9 @@ if ($data = $mform->get_data()) {
     $updated->grade_min = ($updated->criterion_type === 'grade' && isset($data->grade_min))
         ? (float)$data->grade_min
         : null;
+    $updated->grade_operator = ($updated->criterion_type === 'grade' && isset($data->grade_operator))
+        ? $data->grade_operator
+        : '>=';
     $updated->enabled = empty($data->enabled) ? 0 : 1;
     $requiredposts = isset($data->forum_post_count) ? (int)$data->forum_post_count : 0;
     $updated->forum_post_count = ($updated->criterion_type === 'forum' && $requiredposts > 0)
@@ -97,6 +100,7 @@ $defaults = (object)[
     'criterion_type' => $rule->criterion_type,
     'activityid' => $rule->activityid ?? 0,
     'grade_min' => $rule->grade_min,
+    'grade_operator' => $rule->grade_operator ?? '>=',
     'enabled' => isset($rule->enabled) ? (int)$rule->enabled : 1,
     'forum_post_count' => $rule->forum_post_count ?? '',
     'enable_bonus' => (int)!empty($rule->enable_bonus),

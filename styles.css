@@ -1,3 +1,32 @@
+/* Contenedor principal para márgenes consistentes */
+.automatic-badges-container {
+    margin: 1.5rem;
+    padding: 0 1rem;
+    max-width: 1200px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* Alineación de botones de acción */
+.automatic-badges-container .fitem .felement {
+    text-align: left;
+}
+
+/* Alineación de botones en el formulario */
+.automatic-badges-container .mform .fcontainer .fbuttons {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+.automatic-badges-container .mform .fbuttons button,
+.automatic-badges-container .mform .fbuttons input[type="submit"],
+.automatic-badges-container .mform .fbuttons input[type="reset"] {
+    margin: 0;
+    padding: 0.5rem 1rem;
+}
+
 #admin-local-automatic_badges-settings .form-check {
     display: inline-block;
     width: 45%;

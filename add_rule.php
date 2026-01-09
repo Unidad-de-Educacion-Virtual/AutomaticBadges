@@ -64,6 +64,7 @@ if ($data = $mform->get_data()) {
     $criterion = $data->criterion_type;
     $enablebonus = empty($data->enable_bonus) ? 0 : 1;
     $ruleenabled = empty($data->enabled) ? 0 : 1;
+    $isglobalrule = empty($data->is_global_rule) ? 0 : 1;
     $badge = new \core_badges\badge((int)$data->badgeid);
 
     // Guardar la regla en la tabla designada para reglas automaticas.
@@ -72,10 +73,15 @@ if ($data = $mform->get_data()) {
         'badgeid'          => (int)$data->badgeid,
         'criterion_type'   => $criterion,
         'enabled'          => $ruleenabled,
-        'activityid'       => isset($data->activityid) ? (int)$data->activityid : null,
+        'is_global_rule'   => $isglobalrule,
+        'activity_type'    => $isglobalrule && isset($data->activity_type) ? $data->activity_type : null,
+        'activityid'       => !$isglobalrule && isset($data->activityid) ? (int)$data->activityid : null,
         'grade_min'        => $criterion === 'grade' && isset($data->grade_min)
             ? (float)$data->grade_min
             : null,
+        'grade_operator'   => $criterion === 'grade' && isset($data->grade_operator)
+            ? $data->grade_operator
+            : '>=',
         'forum_post_count' => ($criterion === 'forum' && !empty($data->forum_post_count))
             ? max(1, (int)$data->forum_post_count)
             : null,

@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 defined('MOODLE_INTERNAL') || die();
 require_once($CFG->libdir . '/formslib.php');
@@ -65,6 +65,23 @@ class local_automatic_badges_add_rule_form extends moodleform {
         $mform->addElement('html', '</div>');
 
         // --- Validaciones especificas del criterio ---
+        $operators = [
+            '>=' => get_string('operator_gte', 'local_automatic_badges'),
+            '>'  => get_string('operator_gt', 'local_automatic_badges'),
+            '==' => get_string('operator_eq', 'local_automatic_badges'),
+        ];
+        $mform->addElement('select', 'grade_operator',
+            get_string('gradeoperator', 'local_automatic_badges'), $operators);
+        $mform->addHelpButton('grade_operator', 'gradeoperator', 'local_automatic_badges');
+        $mform->setType('grade_operator', PARAM_TEXT);
+        $mform->setDefault('grade_operator', '>=');
+        
+        if (method_exists($mform, 'hideIf')) {
+            $mform->hideIf('grade_operator', 'criterion_type', 'neq', 'grade');
+        } else {
+            $mform->disabledIf('grade_operator', 'criterion_type', 'neq', 'grade');
+        }
+        
         $mform->addElement('text', 'grade_min',
             get_string('grademin', 'local_automatic_badges'));
         $mform->addHelpButton('grade_min', 'grademin', 'local_automatic_badges');
@@ -88,6 +105,17 @@ class local_automatic_badges_add_rule_form extends moodleform {
         } else {
             $mform->disabledIf('forum_post_count', 'criterion_type', 'neq', 'forum');
         }
+
+        // --- Resumen/preview de la regla ---
+        $mform->addElement('header', 'rulepreviewhdr',
+            get_string('rulepreview', 'local_automatic_badges'));
+
+        $mform->addElement('html', '
+        <div id="local_automatic_badges_rule_preview" class="alert alert-info" style="border-left: 4px solid #0f6cbf;">
+            <div id="local_automatic_badges_rule_preview_text" style="background: rgba(255,255,255,0.6); padding: 12px; border-radius: 4px; margin-top: 10px;"></div>
+        </div>
+        ');
+
 
         // --- Seleccion de la insignia ---
         require_once($CFG->dirroot . '/badges/lib.php');
@@ -116,7 +144,7 @@ class local_automatic_badges_add_rule_form extends moodleform {
         $mform->addHelpButton('bonus_points', 'bonusvalue', 'local_automatic_badges');
         $mform->setType('bonus_points', PARAM_FLOAT);
         $mform->setDefault('bonus_points', 0);
-        $mform->disabledIf('bonus_points', 'enable_bonus', 'notchecked');
+        $mform->hideIf('bonus_points', 'enable_bonus', 'notchecked');
 
         // --- Mensaje de notificacion ---
         $mform->addElement('textarea', 'notify_message',
@@ -124,6 +152,36 @@ class local_automatic_badges_add_rule_form extends moodleform {
             'wrap="virtual" rows="3" cols="50"');
         $mform->addHelpButton('notify_message', 'notifymessage', 'local_automatic_badges');
         $mform->setType('notify_message', PARAM_TEXT);
+
+        // --- Condiciones extra para submission ---
+        $mform->addElement('advcheckbox', 'require_submitted',
+            get_string('requiresubmitted', 'local_automatic_badges'));
+        $mform->setType('require_submitted', PARAM_INT);
+        $mform->setDefault('require_submitted', 1);
+
+        $mform->addElement('advcheckbox', 'require_graded',
+            get_string('requiregraded', 'local_automatic_badges'));
+        $mform->setType('require_graded', PARAM_INT);
+        $mform->setDefault('require_graded', 0);
+
+        // Solo aplican para submission
+        if (method_exists($mform, 'hideIf')) {
+            $mform->hideIf('require_submitted', 'criterion_type', 'neq', 'submission');
+            $mform->hideIf('require_graded', 'criterion_type', 'neq', 'submission');
+        } else {
+            $mform->disabledIf('require_submitted', 'criterion_type', 'neq', 'submission');
+            $mform->disabledIf('require_graded', 'criterion_type', 'neq', 'submission');
+        }
+
+        // --- Modo prueba (dry-run) ---
+        $mform->addElement('advcheckbox', 'dry_run',
+            get_string('dryrun', 'local_automatic_badges'));
+        $mform->setType('dry_run', PARAM_INT);
+        $mform->setDefault('dry_run', 0);
+
+        // BotÃ³n extra para probar (no guarda)
+        $mform->addElement('submit', 'testrule',
+            get_string('testrule', 'local_automatic_badges'));
 
         // --- Acciones del formulario ---
         $this->add_action_buttons(true,
@@ -173,16 +231,109 @@ require(['jquery'], function($) {
             }
         }
 
+        function buildPreviewText() {
+            var criterion = $('#id_criterion_type').val();
+            var criterionLabel = $('#id_criterion_type option:selected').text();
+            var enabled = $('#id_enabled').is(':checked');
+            var isGlobal = $('#id_is_global_rule').is(':checked');
+            var activityType = $('#id_activity_type option:selected').text();
+            var activityName = $('#id_activityid option:selected').text();
+            var badgeName = $('#id_badgeid option:selected').text();
+            var gradeMin = $('#id_grade_min').val();
+            var gradeOperator = $('#id_grade_operator option:selected').text();
+            var gradeOperatorRaw = $('#id_grade_operator').val();
+            var forumPosts = $('#id_forum_post_count').val();
+            var enableBonus = $('#id_enable_bonus').is(':checked');
+            var bonusPoints = $('#id_bonus_points').val();
+            var dryRun = $('#id_dry_run').is(':checked');
+            var reqSubmitted = $('#id_require_submitted').is(':checked');
+            var reqGraded = $('#id_require_graded').is(':checked');
+            var notifyMessage = $('#id_notify_message').val();
+
+            var parts = [];
+
+            // Estado
+            if (dryRun) {
+                parts.push('<span class=\"badge badge-warning\"><i class=\"fa fa-flask\"></i> MODO PRUEBA</span>');
+            } else if (!enabled) {
+                parts.push('<span class=\"badge badge-secondary\"><i class=\"fa fa-pause\"></i> Deshabilitada</span>');
+            } else {
+                parts.push('<span class=\"badge badge-success\"><i class=\"fa fa-check-circle\"></i> Activa</span>');
+            }
+
+            // Criterio
+            parts.push('<i class=\"fa fa-filter\"></i> <strong>Criterio:</strong> ' + criterionLabel);
+
+            // Alcance
+            if (isGlobal) {
+                parts.push('<i class=\"fa fa-globe\"></i> <strong>Alcance:</strong> Todas las actividades de tipo ' + activityType);
+            } else {
+                if (activityName) {
+                    parts.push('<i class=\"fa fa-link\"></i> <strong>Actividad:</strong> ' + activityName);
+                } else {
+                    parts.push('<i class=\"fa fa-link\"></i> <strong>Actividad:</strong> <em style=\"color:#dc3545\">Sin seleccionar</em>');
+                }
+            }
+
+            // CondiciÃ³n
+            if (criterion === 'grade') {
+                parts.push('<i class=\"fa fa-chart-line\"></i> <strong>CondiciÃ³n:</strong> CalificaciÃ³n ' + (gradeOperator || '‰¥') + ' <strong style=\"color:#0f6cbf\">' + (gradeMin || '0') + '%</strong>');
+            } else if (criterion === 'forum') {
+                parts.push('<i class=\"fa fa-comments\"></i> <strong>CondiciÃ³n:</strong> MÃ­nimo <strong style=\"color:#0f6cbf\">' + (forumPosts || '0') + '</strong> respuesta(s) en el foro');
+            } else if (criterion === 'submission') {
+                var conds = [];
+                if (reqSubmitted) conds.push('entrega realizada');
+                if (reqGraded) conds.push('calificación publicada');
+                if (conds.length > 0) {
+                    parts.push('<i class=\"fa fa-tasks\"></i> <strong>CondiciÃ³n:</strong> ' + conds.join(' y '));
+                }
+            }
+
+            // Insignia
+            if (badgeName) {
+                parts.push('<i class=\"fa fa-trophy\"></i> <strong>Insignia:</strong> ' + badgeName);
+            } else {
+                parts.push('<i class=\"fa fa-trophy\"></i> <strong>Insignia:</strong> <em style=\"color:#dc3545\">Sin seleccionar</em>');
+            }
+
+            // Puntos extra
+            if (enableBonus && bonusPoints && parseFloat(bonusPoints) > 0) {
+                parts.push('<i class=\"fa fa-gift\"></i> <strong>BonificaciÃ³n:</strong> +' + bonusPoints + ' punto(s)');
+            } else {
+                parts.push('\u003ci class=\"fa fa-gift\"\u003e\u003c/i\u003e \u003cstrong\u003ePuntos extra:\u003c/strong\u003e No');
+            }
+
+            // NotificaciÃ³n
+            if (notifyMessage && notifyMessage.trim() !== '') {
+                var preview = notifyMessage.substring(0, 80);
+                if (notifyMessage.length > 80) preview += '...';
+                parts.push('<i class=\"fa fa-envelope\"></i> <strong>NotificaciÃ³n:</strong> \"' + preview + '\"');
+            }
+
+            // Advertencia modo prueba
+            if (dryRun) {
+                parts.push('<div style=\"margin-top:10px;padding:8px;background:#fff3cd;border-left:3px solid #ffc107;border-radius:3px;font-size:12px;color:#856404\"><i class=\"fa fa-exclamation-triangle\"></i> Esta regla no otorgarÃ¡ insignias realmente</div>');
+            }
+
+            $('#local_automatic_badges_rule_preview_text').html(parts.join('<br>'));
+        }
+
+        // Update preview on changes
+        $(document).on('change', '#id_criterion_type, #id_is_global_rule, #id_activity_type, #id_activityid, #id_badgeid, #id_enable_bonus, #id_dry_run, #id_require_submitted, #id_require_graded, #id_grade_operator, #id_enabled', buildPreviewText);
+        $(document).on('keyup', '#id_grade_min, #id_forum_post_count, #id_bonus_points, #id_notify_message', buildPreviewText);
+
         function updateActivities() {
             var criterion = $('#id_criterion_type').val();
             if (!criterion) {
                 return;
             }
             setOptions(criterion);
+            buildPreviewText();
         }
 
         $(document).on('change', '#id_criterion_type', updateActivities);
         updateActivities();
+        buildPreviewText();
     });
 });
 ");

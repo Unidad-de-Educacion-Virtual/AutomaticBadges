@@ -46,8 +46,19 @@ $string['notifymessage_help'] = 'Optional message sent to participants when they
 $string['saverule'] = 'Save rule';
 $string['grademin'] = 'Minimum grade';
 $string['grademin_help'] = 'Sets the minimum grade required in the linked activity when using the grade criterion.';
+$string['gradeoperator'] = 'Grade comparison operator';
+$string['gradeoperator_help'] = 'Select how to compare the student\'s grade against the minimum value.';
+$string['operator_gte'] = 'Greater than or equal (≥)';
+$string['operator_gt'] = 'Greater than (>)';
+$string['operator_lte'] = 'Less than or equal (≤)';
+$string['operator_lt'] = 'Less than (<)';
+$string['operator_eq'] = 'Equal to (=)';
 $string['ruleenabledlabel'] = 'Enable rule';
 $string['ruleenabledlabel_help'] = 'Only enabled rules are evaluated by the automatic badge task.';
+$string['isglobalrule'] = 'Apply to all activities of type (Global rule)';
+$string['isglobalrule_help'] = 'When enabled, this rule will be applied to all activities of the selected type in the course, instead of a single specific activity.';
+$string['activitytype'] = 'Activity type';
+$string['activitytype_help'] = 'Select the type of activity to which this global rule will be applied (assignments, quizzes, forums, etc).';
 $string['forumpostcount'] = 'Required forum replies';
 $string['forumpostcount_help'] = 'Enter how many replies a participant must post in the selected forum discussion activities before issuing the badge.';
 $string['forumpostcounterror'] = 'Enter a positive number of required forum replies.';
@@ -77,6 +88,14 @@ $string['ruleslisttitle'] = 'Automatic badge rules';
 $string['norulesfound'] = 'No automatic badge rules configured for this course.';
 $string['criterion_type'] = 'Criterion type';
 $string['togglebadgestable'] = 'Show course badges';
+
+// Rule preview and testing.
+$string['rulepreview'] = 'Rule preview';
+$string['rulepreviewtitle'] = 'Rule summary:';
+$string['requiresubmitted'] = 'Require submission';
+$string['requiregraded'] = 'Require graded';
+$string['dryrun'] = 'Test mode (dry run)';
+$string['testrule'] = 'Test rule';
 
 // Admin actions.
 $string['purgecache'] = 'Purge cache';

@@ -10,8 +10,11 @@
         <FIELD NAME="badgeid" TYPE="int" LENGTH="10" NOTNULL="true"/>
         <FIELD NAME="criterion_type" TYPE="char" LENGTH="50" NOTNULL="true"/>
         <FIELD NAME="enabled" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="1"/>
+        <FIELD NAME="is_global_rule" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" COMMENT="Indica si es una regla global"/>
+        <FIELD NAME="activity_type" TYPE="char" LENGTH="50" NOTNULL="false" COMMENT="Tipo de actividad para reglas globales (assign, quiz, forum, etc)"/>
         <FIELD NAME="activityid" TYPE="int" LENGTH="10" NOTNULL="false"/>
         <FIELD NAME="grade_min" TYPE="number" LENGTH="10" DECIMALS="2" NOTNULL="false"/>
+        <FIELD NAME="grade_operator" TYPE="char" LENGTH="5" NOTNULL="true" DEFAULT=">=" COMMENT="Comparison operator for grade evaluation: >=, >, <=, <, =="/>
         <FIELD NAME="forum_post_count" TYPE="int" LENGTH="10" NOTNULL="false"/>
         <FIELD NAME="enable_bonus" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0"/>
         <FIELD NAME="bonus_points" TYPE="number" LENGTH="10" DECIMALS="2" NOTNULL="false"/>

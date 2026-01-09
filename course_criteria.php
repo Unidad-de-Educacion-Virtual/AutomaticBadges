@@ -77,7 +77,13 @@ if ($form->is_cancelled()) {
 }
 
 echo $OUTPUT->header();
-echo $OUTPUT->heading('Configurar Criterios Automáticos');
-$form->set_data($default);
-$form->display();
+?>
+<div class="automatic-badges-container">
+    <?php echo $OUTPUT->heading('Configurar Criterios Automáticos'); ?>
+    <?php
+    $form->set_data($default);
+    $form->display();
+    ?>
+</div>
+<?php
 echo $OUTPUT->footer();
