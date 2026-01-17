@@ -129,11 +129,12 @@ class rule_engine {
 
         $requiredposts = (int)$rule->forum_post_count;
         $courseid = (int)$rule->courseid;
+        $counttype = $rule->forum_count_type ?? 'all';
 
         // Contar posts totales en todos los foros del curso
         $totalposits = 0;
         foreach ($cmids as $cmid) {
-            $postcount = self::get_forum_reply_count($courseid, $cmid, $userid);
+            $postcount = self::get_forum_reply_count($courseid, $cmid, $userid, $counttype);
             $totalposits += $postcount;
         }
 
@@ -207,7 +208,8 @@ class rule_engine {
             return false;
         }
 
-        $replies = self::get_forum_reply_count((int)$rule->courseid, (int)$rule->activityid, $userid);
+        $counttype = $rule->forum_count_type ?? 'all';
+        $replies = self::get_forum_reply_count((int)$rule->courseid, (int)$rule->activityid, $userid, $counttype);
         return $replies >= $requiredposts;
     }
 
@@ -247,14 +249,15 @@ class rule_engine {
     }
 
     /**
-     * Cuenta respuestas realizadas por un usuario en un foro concreto.
+     * Cuenta posts realizados por un usuario en un foro concreto.
      *
      * @param int $courseid
      * @param int $cmid
      * @param int $userid
+     * @param string $counttype Tipo de conteo: 'all', 'replies', 'topics'
      * @return int
      */
-    private static function get_forum_reply_count(int $courseid, int $cmid, int $userid): int {
+    private static function get_forum_reply_count(int $courseid, int $cmid, int $userid, string $counttype = 'all'): int {
         global $DB;
 
         $cm = get_coursemodule_from_id(null, $cmid, $courseid, false, IGNORE_MISSING);
@@ -267,12 +270,30 @@ class rule_engine {
             'userid' => $userid,
         ];
 
+        // Construir condición según el tipo de conteo
+        $parentcondition = '';
+        switch ($counttype) {
+            case 'replies':
+                // Solo respuestas (parent != 0)
+                $parentcondition = 'AND p.parent <> 0';
+                break;
+            case 'topics':
+                // Solo temas nuevos (parent = 0)
+                $parentcondition = 'AND p.parent = 0';
+                break;
+            case 'all':
+            default:
+                // Todos los posts (temas + respuestas)
+                $parentcondition = '';
+                break;
+        }
+
         $sql = "SELECT COUNT(p.id)
                   FROM {forum_posts} p
                   JOIN {forum_discussions} d ON d.id = p.discussion
                  WHERE d.forum = :forumid
                    AND p.userid = :userid
-                   AND p.parent <> 0
+                   {$parentcondition}
                    AND p.deleted = 0";
 
         return (int)$DB->count_records_sql($sql, $params);

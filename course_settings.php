@@ -109,7 +109,7 @@ if (empty($rules)) {
     echo html_writer::tag('th', get_string('criterion_type', 'local_automatic_badges'));
     echo html_writer::tag('th', get_string('rulestatus', 'local_automatic_badges'));
     echo html_writer::tag('th', get_string('badgestatus', 'local_automatic_badges'));
-    echo html_writer::tag('th', get_string('actions'));
+    echo html_writer::tag('th', get_string('actions'), ['style' => 'text-align: center;']);
     echo html_writer::end_tag('tr');
     echo html_writer::end_tag('thead');
 
@@ -154,7 +154,7 @@ if (empty($rules)) {
             html_writer::link($editurl, get_string('edit'), ['class' => 'btn btn-secondary btn-sm']),
             'local-automatic-badges-actioncell__edit'
         );
-        $actionscontent = html_writer::div($toggleform . $editlink, 'local-automatic-badges-actioncell');
+        $actionscontent = html_writer::div($toggleform . $editlink, 'local-automatic-badges-actioncell', ['style' => 'display: flex; flex-wrap: wrap; justify-content: center; gap: 5px;']);
 
         // Generar URL de imagen usando pluginfile (mismo patrón que la tabla de insignias).
         $badgeimageurl = moodle_url::make_pluginfile_url(
@@ -235,7 +235,7 @@ if (empty($badges)) {
     echo html_writer::tag('th', '', ['style' => 'width: 50px;']); // imagen
     echo html_writer::tag('th', get_string('badgenamecolumn', 'local_automatic_badges'));
     echo html_writer::tag('th', get_string('status'));
-    echo html_writer::tag('th', get_string('actions'));
+    echo html_writer::tag('th', get_string('actions'), ['style' => 'text-align: center;']);
     echo html_writer::end_tag('tr');
     echo html_writer::end_tag('thead');
 
@@ -273,7 +273,11 @@ if (empty($badges)) {
         echo html_writer::tag('td', format_string($badge->name));
         echo html_writer::tag('td', $status);
 
-        $actions = html_writer::link($editurl, get_string('edit'), ['class' => 'btn btn-secondary btn-sm']);
+        $actions = html_writer::div(
+            html_writer::link($editurl, get_string('edit'), ['class' => 'btn btn-secondary btn-sm']),
+            '',
+            ['style' => 'display: flex; justify-content: center;']
+        );
         echo html_writer::tag('td', $actions);
         echo html_writer::end_tag('tr');
     }

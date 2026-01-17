@@ -59,5 +59,43 @@ function xmldb_local_automatic_badges_upgrade(int $oldversion): bool {
         upgrade_plugin_savepoint(true, 2026010801, 'local', 'automatic_badges');
     }
 
+    // Upgrade para agregar campos de submission y dry_run
+    if ($oldversion < 2026010802) {
+        $table = new xmldb_table('local_automatic_badges_rules');
+
+        // require_submitted
+        $field = new xmldb_field('require_submitted', XMLDB_TYPE_INTEGER, '1', null, XMLDB_NOTNULL, null, '1', 'notify_message');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        // require_graded
+        $field = new xmldb_field('require_graded', XMLDB_TYPE_INTEGER, '1', null, XMLDB_NOTNULL, null, '0', 'require_submitted');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        // dry_run
+        $field = new xmldb_field('dry_run', XMLDB_TYPE_INTEGER, '1', null, XMLDB_NOTNULL, null, '0', 'require_graded');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        upgrade_plugin_savepoint(true, 2026010802, 'local', 'automatic_badges');
+    }
+
+    // Upgrade para agregar campo forum_count_type
+    if ($oldversion < 2026011301) {
+        $table = new xmldb_table('local_automatic_badges_rules');
+
+        // forum_count_type (all, replies, topics)
+        $field = new xmldb_field('forum_count_type', XMLDB_TYPE_CHAR, '20', null, null, null, 'all', 'forum_post_count');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        upgrade_plugin_savepoint(true, 2026011301, 'local', 'automatic_badges');
+    }
+
     return true;
 }

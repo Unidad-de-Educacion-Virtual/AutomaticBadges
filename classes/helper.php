@@ -39,4 +39,41 @@ class helper {
         }
         return false;
     }
+
+    /**
+     * Obtiene los estudiantes matriculados en un curso.
+     * Filtra solo usuarios con rol de estudiante basado en el archetype.
+     *
+     * @param int $courseid
+     * @return array Lista de objetos usuario con al menos ->id
+     */
+    public static function get_students_in_course(int $courseid): array {
+        global $DB;
+        
+        $context = \context_course::instance($courseid);
+        
+        // Obtener IDs de roles con archetype 'student'
+        $studentroles = $DB->get_records('role', ['archetype' => 'student'], '', 'id');
+        if (empty($studentroles)) {
+            return [];
+        }
+        
+        $roleids = array_keys($studentroles);
+        list($rolesql, $roleparams) = $DB->get_in_or_equal($roleids, SQL_PARAMS_NAMED, 'role');
+        
+        // Obtener usuarios con esos roles en el contexto del curso
+        // Incluir todos los campos necesarios para fullname()
+        $sql = "SELECT DISTINCT u.id, u.firstname, u.lastname, u.email,
+                       u.firstnamephonetic, u.lastnamephonetic, u.middlename, u.alternatename
+                FROM {user} u
+                JOIN {role_assignments} ra ON ra.userid = u.id
+                WHERE ra.contextid = :contextid
+                  AND ra.roleid $rolesql
+                  AND u.deleted = 0
+                  AND u.suspended = 0";
+        
+        $params = array_merge(['contextid' => $context->id], $roleparams);
+        
+        return $DB->get_records_sql($sql, $params);
+    }
 }

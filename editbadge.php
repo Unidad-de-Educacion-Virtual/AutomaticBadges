@@ -14,17 +14,22 @@ $badgeclass = class_exists('\\core_badges\\badge') ? '\\core_badges\\badge' : '\
 $badge = new $badgeclass($badgeid);
 $badgectx = $badge->get_context();
 
+// Si no se pasó courseid, obtenerlo de la insignia
+if ($fromcourseid == 0 && isset($badge->courseid) && $badge->courseid > 0) {
+    $fromcourseid = (int)$badge->courseid;
+}
+
 $PAGE->set_url(new moodle_url('/local/automatic_badges/editbadge.php', ['id'=>$badgeid, 'courseid'=>$fromcourseid]));
 $PAGE->set_context($badgectx);
 $PAGE->set_pagelayout('admin');
-$PAGE->set_title(get_string('editbadge', 'badges') . ': ' . format_string($badge->name));
+$PAGE->set_title(get_string('edit') . ': ' . format_string($badge->name));
 $PAGE->set_heading(get_string('badges', 'badges'));
 
 require_once($CFG->dirroot.'/local/automatic_badges/forms/editbadge_form.php');
 $mform = new local_automatic_badges_editbadge_form();
 
 if ($mform->is_cancelled()) {
-    redirect(new moodle_url('/badges/index.php'));
+    redirect(new moodle_url('/local/automatic_badges/course_settings.php', ['id' => $fromcourseid]));
 }
 
 if ($data = $mform->get_data()) {
@@ -62,7 +67,7 @@ $init->message       = $badge->message ?? '';
 $init->statusenable  = (int)$badge->is_active();
 
 echo $OUTPUT->header();
-echo $OUTPUT->heading(get_string('editbadge', 'badges'));
+echo $OUTPUT->heading(get_string('edit') . ': ' . format_string($badge->name));
 
 $mform->set_data($init);
 $mform->display();

@@ -94,6 +94,24 @@ class local_automatic_badges_add_rule_form extends moodleform {
             $mform->disabledIf('grade_min', 'criterion_type', 'neq', 'grade');
         }
 
+        // Tipo de publicaciones a contar
+        $forumcounttypes = [
+            'all'     => get_string('forumcounttype_all', 'local_automatic_badges'),
+            'replies' => get_string('forumcounttype_replies', 'local_automatic_badges'),
+            'topics'  => get_string('forumcounttype_topics', 'local_automatic_badges'),
+        ];
+        $mform->addElement('select', 'forum_count_type',
+            get_string('forumcounttype', 'local_automatic_badges'), $forumcounttypes);
+        $mform->addHelpButton('forum_count_type', 'forumcounttype', 'local_automatic_badges');
+        $mform->setType('forum_count_type', PARAM_ALPHA);
+        $mform->setDefault('forum_count_type', 'all');
+        if (method_exists($mform, 'hideIf')) {
+            $mform->hideIf('forum_count_type', 'criterion_type', 'neq', 'forum');
+        } else {
+            $mform->disabledIf('forum_count_type', 'criterion_type', 'neq', 'forum');
+        }
+
+        // Campo único de conteo - la etiqueta se actualiza via JavaScript
         $mform->addElement('text', 'forum_post_count',
             get_string('forumpostcount', 'local_automatic_badges'));
         $mform->addHelpButton('forum_post_count', 'forumpostcount', 'local_automatic_badges');
@@ -105,16 +123,6 @@ class local_automatic_badges_add_rule_form extends moodleform {
         } else {
             $mform->disabledIf('forum_post_count', 'criterion_type', 'neq', 'forum');
         }
-
-        // --- Resumen/preview de la regla ---
-        $mform->addElement('header', 'rulepreviewhdr',
-            get_string('rulepreview', 'local_automatic_badges'));
-
-        $mform->addElement('html', '
-        <div id="local_automatic_badges_rule_preview" class="alert alert-info" style="border-left: 4px solid #0f6cbf;">
-            <div id="local_automatic_badges_rule_preview_text" style="background: rgba(255,255,255,0.6); padding: 12px; border-radius: 4px; margin-top: 10px;"></div>
-        </div>
-        ');
 
 
         // --- Seleccion de la insignia ---
@@ -179,7 +187,17 @@ class local_automatic_badges_add_rule_form extends moodleform {
         $mform->setType('dry_run', PARAM_INT);
         $mform->setDefault('dry_run', 0);
 
-        // BotÃ³n extra para probar (no guarda)
+        // --- Resumen/preview de la regla ---
+        $mform->addElement('header', 'rulepreviewhdr',
+            get_string('rulepreview', 'local_automatic_badges'));
+
+        $mform->addElement('html', '
+        <div id="local_automatic_badges_rule_preview" class="alert alert-info" style="border-left: 4px solid #0f6cbf;">
+            <div id="local_automatic_badges_rule_preview_text" style="background: rgba(255,255,255,0.6); padding: 12px; border-radius: 4px; margin-top: 10px;"></div>
+        </div>
+        ');
+
+        // Botón extra para probar (no guarda)
         $mform->addElement('submit', 'testrule',
             get_string('testrule', 'local_automatic_badges'));
 
@@ -189,7 +207,7 @@ class local_automatic_badges_add_rule_form extends moodleform {
 
         $activityjson = json_encode($criteriaactivities, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
         $noactivities = json_encode(get_string('noeligibleactivities', 'local_automatic_badges'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
-        $PAGE->requires->js_init_code("
+        $PAGE->requires->js_init_code(<<<JS
 require(['jquery'], function($) {
     $(function() {
         var activityMap = {$activityjson};
@@ -198,6 +216,7 @@ require(['jquery'], function($) {
         var select = $('#id_activityid');
         var warning = $('#local_automatic_badges_activity_warning');
 
+        // Actualiza las opciones de actividad según el criterio
         function setOptions(criterion) {
             var activities = activityMap[criterion] || {};
             var current = select.val();
@@ -231,96 +250,152 @@ require(['jquery'], function($) {
             }
         }
 
+        // Etiquetas dinámicas para el campo de conteo según el tipo
+        var forumCountLabels = {
+            'all': 'Publicaciones necesarias (temas o respuestas)',
+            'replies': 'Respuestas necesarias',
+            'topics': 'Temas necesarios'
+        };
+
+        // Actualiza la etiqueta del campo de conteo según el tipo seleccionado
+        function updateForumCountLabel() {
+            var countType = $('#id_forum_count_type').val() || 'all';
+            var label = forumCountLabels[countType] || forumCountLabels['all'];
+            
+            // Actualizar la etiqueta del campo forum_post_count
+            var labelEl = $('label[for="id_forum_post_count"]');
+            if (labelEl.length) {
+                labelEl.text(label);
+            }
+            // También intentar actualizar en themes Bootstrap
+            $('#id_forum_post_count').closest('.form-group, .fitem').find('label').first().text(label);
+        }
+        
+        // Construye el texto de previsualización
         function buildPreviewText() {
             var criterion = $('#id_criterion_type').val();
             var criterionLabel = $('#id_criterion_type option:selected').text();
             var enabled = $('#id_enabled').is(':checked');
-            var isGlobal = $('#id_is_global_rule').is(':checked');
-            var activityType = $('#id_activity_type option:selected').text();
+            
+            var activityVal = $('#id_activityid').val();
             var activityName = $('#id_activityid option:selected').text();
+            
             var badgeName = $('#id_badgeid option:selected').text();
+            
             var gradeMin = $('#id_grade_min').val();
-            var gradeOperator = $('#id_grade_operator option:selected').text();
             var gradeOperatorRaw = $('#id_grade_operator').val();
-            var forumPosts = $('#id_forum_post_count').val();
+            
+            var countType = $('#id_forum_count_type').val();
+            var forumPosts = $('#id_forum_post_count').val() || '5';
             var enableBonus = $('#id_enable_bonus').is(':checked');
             var bonusPoints = $('#id_bonus_points').val();
             var dryRun = $('#id_dry_run').is(':checked');
+            
             var reqSubmitted = $('#id_require_submitted').is(':checked');
             var reqGraded = $('#id_require_graded').is(':checked');
             var notifyMessage = $('#id_notify_message').val();
 
             var parts = [];
 
-            // Estado
+            // 1. Estado
             if (dryRun) {
-                parts.push('<span class=\"badge badge-warning\"><i class=\"fa fa-flask\"></i> MODO PRUEBA</span>');
+                parts.push('<span class="badge badge-warning"><i class="fa fa-flask"></i> MODO PRUEBA</span>');
             } else if (!enabled) {
-                parts.push('<span class=\"badge badge-secondary\"><i class=\"fa fa-pause\"></i> Deshabilitada</span>');
+                parts.push('<span class="badge badge-secondary"><i class="fa fa-pause"></i> Deshabilitada</span>');
             } else {
-                parts.push('<span class=\"badge badge-success\"><i class=\"fa fa-check-circle\"></i> Activa</span>');
+                parts.push('<span class="badge badge-success"><i class="fa fa-check-circle"></i> Activa</span>');
             }
 
-            // Criterio
-            parts.push('<i class=\"fa fa-filter\"></i> <strong>Criterio:</strong> ' + criterionLabel);
-
-            // Alcance
-            if (isGlobal) {
-                parts.push('<i class=\"fa fa-globe\"></i> <strong>Alcance:</strong> Todas las actividades de tipo ' + activityType);
+            parts.push('<div class="mt-2">');
+            
+            // 2. Criterio y Actividad
+            parts.push('<i class="fa fa-filter text-muted"></i> <strong>Criterio:</strong> ' + criterionLabel);
+            
+            if (activityVal && activityName) {
+                parts.push('<br><i class="fa fa-link text-muted"></i> <strong>Actividad:</strong> ' + activityName);
             } else {
-                if (activityName) {
-                    parts.push('<i class=\"fa fa-link\"></i> <strong>Actividad:</strong> ' + activityName);
-                } else {
-                    parts.push('<i class=\"fa fa-link\"></i> <strong>Actividad:</strong> <em style=\"color:#dc3545\">Sin seleccionar</em>');
-                }
+                parts.push('<br><i class="fa fa-link text-muted"></i> <strong>Actividad:</strong> <em class="text-danger">Sin seleccionar</em>');
             }
+            parts.push('</div>');
 
-            // CondiciÃ³n
+            // 3. Condición específica
+            var conditionHtml = '';
             if (criterion === 'grade') {
-                parts.push('<i class=\"fa fa-chart-line\"></i> <strong>CondiciÃ³n:</strong> CalificaciÃ³n ' + (gradeOperator || '‰¥') + ' <strong style=\"color:#0f6cbf\">' + (gradeMin || '0') + '%</strong>');
+                var op = gradeOperatorRaw || '>=';
+                var min = gradeMin || '0';
+                conditionHtml = 'Calificación ' + op + ' <strong class="text-primary">' + min + '%</strong>';
             } else if (criterion === 'forum') {
-                parts.push('<i class=\"fa fa-comments\"></i> <strong>CondiciÃ³n:</strong> MÃ­nimo <strong style=\"color:#0f6cbf\">' + (forumPosts || '0') + '</strong> respuesta(s) en el foro');
+                var posts = forumPosts || '5';
+                var typeLabel = '';
+                if (countType === 'replies') {
+                    typeLabel = 'respuesta(s)';
+                } else if (countType === 'topics') {
+                    typeLabel = 'tema(s) nuevo(s)';
+                } else {
+                    typeLabel = 'publicación(es)';
+                }
+                conditionHtml = 'Mínimo <strong class="text-primary">' + posts + '</strong> ' + typeLabel + ' en el foro';
             } else if (criterion === 'submission') {
                 var conds = [];
                 if (reqSubmitted) conds.push('entrega realizada');
                 if (reqGraded) conds.push('calificación publicada');
                 if (conds.length > 0) {
-                    parts.push('<i class=\"fa fa-tasks\"></i> <strong>CondiciÃ³n:</strong> ' + conds.join(' y '));
+                    conditionHtml = conds.join(' y ');
+                } else {
+                    conditionHtml = '<em class="text-warning">Sin requisitos extra</em>';
                 }
             }
+            
+            if (conditionHtml) {
+                parts.push('<div class="mt-1"><i class="fa fa-tasks text-muted"></i> <strong>Condición:</strong> ' + conditionHtml + '</div>');
+            }
 
-            // Insignia
+            // 4. Insignia y Bonificación
+            var rewardHtml = '<div class="mt-2 py-2 px-2 bg-white rounded border">';
             if (badgeName) {
-                parts.push('<i class=\"fa fa-trophy\"></i> <strong>Insignia:</strong> ' + badgeName);
+                rewardHtml += '<i class="fa fa-trophy text-warning"></i> <strong>Insignia:</strong> ' + badgeName;
             } else {
-                parts.push('<i class=\"fa fa-trophy\"></i> <strong>Insignia:</strong> <em style=\"color:#dc3545\">Sin seleccionar</em>');
+                rewardHtml += '<i class="fa fa-trophy text-muted"></i> <strong>Insignia:</strong> <em class="text-danger">Sin seleccionar</em>';
             }
 
-            // Puntos extra
             if (enableBonus && bonusPoints && parseFloat(bonusPoints) > 0) {
-                parts.push('<i class=\"fa fa-gift\"></i> <strong>BonificaciÃ³n:</strong> +' + bonusPoints + ' punto(s)');
-            } else {
-                parts.push('\u003ci class=\"fa fa-gift\"\u003e\u003c/i\u003e \u003cstrong\u003ePuntos extra:\u003c/strong\u003e No');
+                rewardHtml += '<br><i class="fa fa-gift text-success"></i> <strong>Bonificación:</strong> +' + bonusPoints + ' punto(s)';
             }
+            
+            rewardHtml += '</div>';
+            parts.push(rewardHtml);
 
-            // NotificaciÃ³n
+            // 5. Notificación
             if (notifyMessage && notifyMessage.trim() !== '') {
                 var preview = notifyMessage.substring(0, 80);
                 if (notifyMessage.length > 80) preview += '...';
-                parts.push('<i class=\"fa fa-envelope\"></i> <strong>NotificaciÃ³n:</strong> \"' + preview + '\"');
+                // Basic HTML escape for preview
+                var safePreview = $('<div>').text(preview).html();
+                parts.push('<div class="mt-2 text-muted small"><i class="fa fa-envelope"></i> <em>' + safePreview + '</em></div>');
             }
 
-            // Advertencia modo prueba
+            // 6. Advertencia
             if (dryRun) {
-                parts.push('<div style=\"margin-top:10px;padding:8px;background:#fff3cd;border-left:3px solid #ffc107;border-radius:3px;font-size:12px;color:#856404\"><i class=\"fa fa-exclamation-triangle\"></i> Esta regla no otorgarÃ¡ insignias realmente</div>');
+                parts.push('<div class="alert alert-warning mt-2 mb-0 py-1"><small><i class="fa fa-exclamation-triangle"></i> Esta regla no otorgará insignias realmente.</small></div>');
             }
 
-            $('#local_automatic_badges_rule_preview_text').html(parts.join('<br>'));
+            $('#local_automatic_badges_rule_preview_text').html(parts.join(''));
         }
 
-        // Update preview on changes
-        $(document).on('change', '#id_criterion_type, #id_is_global_rule, #id_activity_type, #id_activityid, #id_badgeid, #id_enable_bonus, #id_dry_run, #id_require_submitted, #id_require_graded, #id_grade_operator, #id_enabled', buildPreviewText);
-        $(document).on('keyup', '#id_grade_min, #id_forum_post_count, #id_bonus_points, #id_notify_message', buildPreviewText);
+        // Event Listeners
+        var inputs = [
+            '#id_criterion_type', '#id_enabled', '#id_activityid', '#id_badgeid',
+            '#id_grade_operator', '#id_enable_bonus', '#id_dry_run', 
+            '#id_require_submitted', '#id_require_graded', '#id_forum_count_type'
+        ].join(', ');
+        
+        var textInputs = '#id_grade_min, #id_forum_post_count, #id_bonus_points, #id_notify_message';
+
+        $(document).on('change', inputs, function() {
+            updateForumCountLabel();
+            buildPreviewText();
+        });
+        $(document).on('keyup', textInputs, buildPreviewText);
 
         function updateActivities() {
             var criterion = $('#id_criterion_type').val();
@@ -328,15 +403,18 @@ require(['jquery'], function($) {
                 return;
             }
             setOptions(criterion);
+            updateForumCountLabel();
             buildPreviewText();
         }
 
         $(document).on('change', '#id_criterion_type', updateActivities);
         updateActivities();
+        updateForumCountLabel();
         buildPreviewText();
     });
 });
-");
+JS
+);
     }
 
     // === Helpers de actividades ===

@@ -7,7 +7,11 @@ require_once($CFG->dirroot . '/badges/lib.php'); // Constantes y helpers de badg
 require_once($CFG->dirroot . '/local/automatic_badges/forms/form_add_rule.php');
 
 // === Parametros requeridos ===
-$courseid = required_param('id', PARAM_INT);
+// Intentar obtener el courseid de 'id' (GET) o de 'courseid' (POST del formulario)
+$courseid = optional_param('id', 0, PARAM_INT);
+if ($courseid == 0) {
+    $courseid = required_param('courseid', PARAM_INT);
+}
 
 
 
@@ -61,6 +65,10 @@ if ($mform->is_cancelled()) {
 if ($data = $mform->get_data()) {
     global $DB;
 
+    // Determinar si viene del botón "Guardar y probar"
+    $isTestRun = !empty($data->testrule);
+
+    // === Guardar la regla ===
     $criterion = $data->criterion_type;
     $enablebonus = empty($data->enable_bonus) ? 0 : 1;
     $ruleenabled = empty($data->enabled) ? 0 : 1;
@@ -85,6 +93,9 @@ if ($data = $mform->get_data()) {
         'forum_post_count' => ($criterion === 'forum' && !empty($data->forum_post_count))
             ? max(1, (int)$data->forum_post_count)
             : null,
+        'forum_count_type' => ($criterion === 'forum' && !empty($data->forum_count_type))
+            ? $data->forum_count_type
+            : 'all',
         'enable_bonus'     => $enablebonus,
         'bonus_points'     => $enablebonus && isset($data->bonus_points)
             ? (float)$data->bonus_points
@@ -96,12 +107,19 @@ if ($data = $mform->get_data()) {
         'timemodified'     => time(),
     ];
 
-    $DB->insert_record('local_automatic_badges_rules', $record);
+    $newruleid = $DB->insert_record('local_automatic_badges_rules', $record);
 
     $badgeactivated = false;
     if (method_exists($badge, 'is_active') && !$badge->is_active()) {
         $badge->set_status(BADGE_STATUS_ACTIVE);
         $badgeactivated = true;
+    }
+
+    // Si es "Guardar y probar", redirigir a edit_rule con runtest=1
+    if ($isTestRun) {
+        redirect(
+            new moodle_url('/local/automatic_badges/edit_rule.php', ['id' => $newruleid, 'runtest' => 1])
+        );
     }
 
     $badgename = format_string($badge->name);
