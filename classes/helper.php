@@ -123,4 +123,113 @@ class helper {
                 return !empty($supportsgrades) || !empty($supportscompletion);
         }
     }
+
+    /**
+     * Get course sections for section-based cumulative criteria.
+     *
+     * @param int $courseid
+     * @return array<int,string> Array of section_id => section name
+     */
+    public static function get_course_sections(int $courseid): array {
+        $modinfo = get_fast_modinfo($courseid);
+        $sections = [];
+        
+        foreach ($modinfo->get_section_info_all() as $section) {
+            if ($section->visible) {
+                $name = get_section_name($courseid, $section);
+                if (empty($name)) {
+                    $name = get_string('section') . ' ' . $section->section;
+                }
+                $sections[$section->id] = $name;
+            }
+        }
+        
+        return $sections;
+    }
+
+    /**
+     * Get all gradable activities in a specific course section.
+     *
+     * @param int $courseid
+     * @param int $sectionid
+     * @return array List of cm_info objects
+     */
+    public static function get_section_gradable_activities(int $courseid, int $sectionid): array {
+        $modinfo = get_fast_modinfo($courseid);
+        $activities = [];
+        
+        foreach ($modinfo->get_cms() as $cm) {
+            if (!$cm->uservisible || $cm->section != $sectionid) {
+                continue;
+            }
+            if (plugin_supports('mod', $cm->modname, FEATURE_GRADE_HAS_GRADE)) {
+                $activities[] = $cm;
+            }
+        }
+        
+        return $activities;
+    }
+
+    /**
+     * Get supported module types for global rules.
+     * 
+     * @return array
+     */
+    public static function get_global_mod_types(): array {
+        $types = [
+            'assign' => get_string('modulename', 'assign'),
+            'quiz' => get_string('modulename', 'quiz'),
+            'forum' => get_string('modulename', 'forum'),
+            'workshop' => get_string('modulename', 'workshop'),
+        ];
+        // Only include if plugins exist
+        foreach ($types as $mod => $name) {
+            if (!\core_component::get_component_directory("mod_$mod")) {
+                unset($types[$mod]);
+            }
+        }
+        return $types;
+    }
+
+    /**
+     * Clone a badge for global rule generation.
+     * 
+     * @param int $basebadgeid ID of the badge to clone
+     * @param int $courseid Course ID (context)
+     * @param string $newname Name for the new badge
+     * @return int New badge ID
+     */
+    public static function clone_badge(int $basebadgeid, int $courseid, string $newname): int {
+        global $DB, $USER, $CFG;
+        require_once($CFG->libdir . '/badgeslib.php');
+
+        $basebadge = $DB->get_record('badge', ['id' => $basebadgeid], '*', MUST_EXIST);
+        $newbadge = clone($basebadge);
+        unset($newbadge->id);
+        $newbadge->name = $newname;
+        $newbadge->timecreated = time();
+        $newbadge->timemodified = time();
+        $newbadge->usercreated = $USER->id;
+        $newbadge->usermodified = $USER->id;
+        $newbadge->status = BADGE_STATUS_INACTIVE;
+        
+        // Insert new badge record
+        $newid = $DB->insert_record('badge', $newbadge);
+        
+        // Copy Badge Image
+        // Badges use context_course or context_system. Assuming course badges.
+        $context = \context_course::instance($courseid);
+        $fs = get_file_storage();
+        
+        // Try to find the image file in the 'badges' component, 'badgeimage' area, itemid = basebadgeid
+        $files = $fs->get_area_files($context->id, 'badges', 'badgeimage', $basebadgeid, 'sortorder', false);
+        if ($file = reset($files)) {
+            $fs->create_file_from_storedfile(['itemid' => $newid], $file);
+        } else {
+            // Fallback: if it's a site badge or other context? 
+            // For now assume course context as per requirement.
+        }
+
+        return $newid;
+    }
 }

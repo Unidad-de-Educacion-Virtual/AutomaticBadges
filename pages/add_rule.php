@@ -82,6 +82,7 @@ if ($mform->is_cancelled()) {
 
 // === Procesamiento del envio del formulario ===
 if ($data = $mform->get_data()) {
+    $data->selected_activities = optional_param_array('selected_activities', [], PARAM_INT);
     $isTestRun = !empty($data->testrule);
 
     // Usar rule_manager para procesar la regla

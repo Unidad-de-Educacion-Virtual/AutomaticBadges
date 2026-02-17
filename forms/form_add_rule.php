@@ -28,11 +28,14 @@ class local_automatic_badges_add_rule_form extends moodleform {
         $mform->setType('enabled', PARAM_INT);
         $mform->setDefault('enabled', 1);
 
+
+
         // --- Seleccion del tipo de criterio ---
         $options = [
             'grade'      => get_string('criterion_grade', 'local_automatic_badges'),
             'forum'      => get_string('criterion_forum', 'local_automatic_badges'),
             'submission' => get_string('criterion_submission', 'local_automatic_badges'),
+            'section'    => get_string('criterion_section', 'local_automatic_badges'),
         ];
         $criteriondefault = $this->_customdata['criterion_type'] ?? 'grade';
         $criterion = optional_param('criterion_type', $criteriondefault, PARAM_ALPHA);
@@ -46,6 +49,32 @@ class local_automatic_badges_add_rule_form extends moodleform {
         $mform->setDefault('criterion_type', $criterion);
         $mform->addRule('criterion_type', null, 'required', null, 'client');
 
+        // --- Global Settings (Solo para nuevas reglas) ---
+        if ($ruleid == 0) {
+            $mform->addElement('header', 'globalsettings', get_string('globalsettings', 'local_automatic_badges'));
+            
+            $mform->addElement('checkbox', 'is_global_rule', get_string('isglobalrule', 'local_automatic_badges'));
+            $mform->addHelpButton('is_global_rule', 'isglobalrule', 'local_automatic_badges');
+            
+            // Mod type
+            $modtypes = \local_automatic_badges\helper::get_global_mod_types();
+            $mform->addElement('select', 'global_mod_type', get_string('globalmodtype', 'local_automatic_badges'), $modtypes);
+            $mform->hideIf('global_mod_type', 'is_global_rule', 'notchecked');
+            
+            // Selector de actividades para regla global
+            $mform->addElement('html', '<div id="local_automatic_badges_global_activities" class="local-automatic-badges-activity-selection" style="display:none;">');
+            $mform->addElement('html', '<div class="local-automatic-badges-activity-selection__header">');
+            $mform->addElement('html', '<span>' . get_string('selectactivities', 'local_automatic_badges') . '</span>');
+            $mform->addElement('html', '<button type="button" id="local_badges_select_all" class="btn btn-sm btn-link">' . get_string('selectall') . '</button>');
+            $mform->addElement('html', '</div>');
+            $mform->addElement('html', '<div id="local_automatic_badges_global_activities_list" class="local-automatic-badges-activity-selection__list">');
+            $mform->addElement('html', '<div class="local-automatic-badges-activity-selection__empty">' . get_string('selecttypefirst', 'local_automatic_badges') . '</div>');
+            $mform->addElement('html', '</div>');
+            $mform->addElement('html', '</div>');
+            
+            $mform->addElement('html', '<hr>');
+        }
+
         // --- Seleccion de la actividad objetivo ---
         // Selector anidado segun el criterio.
         $mform->addElement('html', '<div id="local_automatic_badges_activity_container">');
@@ -53,11 +82,19 @@ class local_automatic_badges_add_rule_form extends moodleform {
             'grade' => \local_automatic_badges\helper::get_eligible_activities($courseid, 'grade'),
             'forum' => \local_automatic_badges\helper::get_eligible_activities($courseid, 'forum'),
             'submission' => \local_automatic_badges\helper::get_eligible_activities($courseid, 'submission'),
+            'section' => \local_automatic_badges\helper::get_course_sections($courseid),
         ];
         $this->eligibleactivities = $criteriaactivities[$criterion] ?? [];
         $mform->addElement('select', 'activityid',
             get_string('activitylinked', 'local_automatic_badges'), $this->eligibleactivities);
         $mform->addHelpButton('activityid', 'activitylinked', 'local_automatic_badges');
+        
+        // Hide activity selector if global
+        if ($ruleid == 0) {
+            $mform->hideIf('activityid', 'is_global_rule', 'checked');
+            $mform->hideIf('local_automatic_badges_activity_container', 'is_global_rule', 'checked');
+            $mform->hideIf('local_automatic_badges_activity_warning', 'is_global_rule', 'checked');
+        }
         $mform->addRule('activityid', null, 'required', null, 'client');
         $mform->setType('activityid', PARAM_INT);
         $mform->addElement('html', '<div id="local_automatic_badges_activity_warning" class="alert alert-warning" style="display:none;">' .
@@ -69,6 +106,7 @@ class local_automatic_badges_add_rule_form extends moodleform {
             '>=' => get_string('operator_gte', 'local_automatic_badges'),
             '>'  => get_string('operator_gt', 'local_automatic_badges'),
             '==' => get_string('operator_eq', 'local_automatic_badges'),
+            'range' => get_string('operator_range', 'local_automatic_badges'),
         ];
         $mform->addElement('select', 'grade_operator',
             get_string('gradeoperator', 'local_automatic_badges'), $operators);
@@ -92,6 +130,21 @@ class local_automatic_badges_add_rule_form extends moodleform {
             $mform->hideIf('grade_min', 'criterion_type', 'neq', 'grade');
         } else {
             $mform->disabledIf('grade_min', 'criterion_type', 'neq', 'grade');
+        }
+
+        // Calificación máxima - solo visible cuando operador es "range"
+        $mform->addElement('text', 'grade_max',
+            get_string('grademax', 'local_automatic_badges'));
+        $mform->addHelpButton('grade_max', 'grademax', 'local_automatic_badges');
+        $mform->setType('grade_max', PARAM_FLOAT);
+        $mform->setDefault('grade_max', 100);
+
+        if (method_exists($mform, 'hideIf')) {
+            $mform->hideIf('grade_max', 'criterion_type', 'neq', 'grade');
+            $mform->hideIf('grade_max', 'grade_operator', 'neq', 'range');
+        } else {
+            $mform->disabledIf('grade_max', 'criterion_type', 'neq', 'grade');
+            $mform->disabledIf('grade_max', 'grade_operator', 'neq', 'range');
         }
 
         // Tipo de publicaciones a contar
@@ -124,6 +177,17 @@ class local_automatic_badges_add_rule_form extends moodleform {
             $mform->disabledIf('forum_post_count', 'criterion_type', 'neq', 'forum');
         }
 
+        // --- Campos específicos para section (acumulativo) ---
+        $mform->addElement('text', 'section_min_grade',
+            get_string('section_min_grade', 'local_automatic_badges'));
+        $mform->addHelpButton('section_min_grade', 'section_min_grade', 'local_automatic_badges');
+        $mform->setType('section_min_grade', PARAM_FLOAT);
+        $mform->setDefault('section_min_grade', 60);
+        if (method_exists($mform, 'hideIf')) {
+            $mform->hideIf('section_min_grade', 'criterion_type', 'neq', 'section');
+        } else {
+            $mform->disabledIf('section_min_grade', 'criterion_type', 'neq', 'section');
+        }
 
         // --- Seleccion de la insignia ---
         require_once($CFG->dirroot . '/badges/lib.php');
@@ -188,13 +252,38 @@ class local_automatic_badges_add_rule_form extends moodleform {
         $mform->setType('require_graded', PARAM_INT);
         $mform->setDefault('require_graded', 0);
 
+        // Tipo de entrega (puntualidad)
+        $submissiontypes = [
+            'any'    => get_string('submissiontype_any', 'local_automatic_badges'),
+            'ontime' => get_string('submissiontype_ontime', 'local_automatic_badges'),
+            'early'  => get_string('submissiontype_early', 'local_automatic_badges'),
+        ];
+        $mform->addElement('select', 'submission_type',
+            get_string('submissiontype', 'local_automatic_badges'), $submissiontypes);
+        $mform->addHelpButton('submission_type', 'submissiontype', 'local_automatic_badges');
+        $mform->setType('submission_type', PARAM_ALPHA);
+        $mform->setDefault('submission_type', 'any');
+
+        // Horas antes del deadline para entrega anticipada
+        $mform->addElement('text', 'early_hours',
+            get_string('earlyhours', 'local_automatic_badges'));
+        $mform->addHelpButton('early_hours', 'earlyhours', 'local_automatic_badges');
+        $mform->setType('early_hours', PARAM_INT);
+        $mform->setDefault('early_hours', 24);
+
         // Solo aplican para submission
         if (method_exists($mform, 'hideIf')) {
             $mform->hideIf('require_submitted', 'criterion_type', 'neq', 'submission');
             $mform->hideIf('require_graded', 'criterion_type', 'neq', 'submission');
+            $mform->hideIf('submission_type', 'criterion_type', 'neq', 'submission');
+            $mform->hideIf('early_hours', 'criterion_type', 'neq', 'submission');
+            $mform->hideIf('early_hours', 'submission_type', 'neq', 'early');
         } else {
             $mform->disabledIf('require_submitted', 'criterion_type', 'neq', 'submission');
             $mform->disabledIf('require_graded', 'criterion_type', 'neq', 'submission');
+            $mform->disabledIf('submission_type', 'criterion_type', 'neq', 'submission');
+            $mform->disabledIf('early_hours', 'criterion_type', 'neq', 'submission');
+            $mform->disabledIf('early_hours', 'submission_type', 'neq', 'early');
         }
 
         // --- Modo prueba (dry-run) ---
@@ -309,6 +398,9 @@ require(['jquery'], function($) {
             
             var reqSubmitted = $('#id_require_submitted').is(':checked');
             var reqGraded = $('#id_require_graded').is(':checked');
+            var submissionType = $('#id_submission_type').val() || 'any';
+            var earlyHours = $('#id_early_hours').val() || '24';
+            var gradeMax = $('#id_grade_max').val();
             var notifyMessage = $('#id_notify_message').val();
 
             var parts = [];
@@ -339,7 +431,14 @@ require(['jquery'], function($) {
             if (criterion === 'grade') {
                 var op = gradeOperatorRaw || '>=';
                 var min = gradeMin || '0';
-                conditionHtml = 'Calificación ' + op + ' <strong class="text-primary">' + min + '%</strong>';
+                
+                if (op === 'range' && gradeMax) {
+                    conditionHtml = 'Calificación entre <strong class="text-primary">' + min + '%</strong> y <strong class="text-primary">' + gradeMax + '%</strong>';
+                } else if (op === 'range') {
+                    conditionHtml = 'Calificación entre <strong class="text-primary">' + min + '%</strong> y <strong class="text-primary">100%</strong>';
+                } else {
+                    conditionHtml = 'Calificación ' + op + ' <strong class="text-primary">' + min + '%</strong>';
+                }
             } else if (criterion === 'forum') {
                 var posts = forumPosts || '5';
                 var typeLabel = '';
@@ -355,6 +454,14 @@ require(['jquery'], function($) {
                 var conds = [];
                 if (reqSubmitted) conds.push('entrega realizada');
                 if (reqGraded) conds.push('calificación publicada');
+                
+                // Añadir tipo de entrega
+                if (submissionType === 'ontime') {
+                    conds.push('<strong class="text-success">a tiempo</strong>');
+                } else if (submissionType === 'early') {
+                    conds.push('<strong class="text-success">' + earlyHours + 'h antes del plazo</strong>');
+                }
+                
                 if (conds.length > 0) {
                     conditionHtml = conds.join(' y ');
                 } else {
@@ -402,10 +509,11 @@ require(['jquery'], function($) {
         var inputs = [
             '#id_criterion_type', '#id_enabled', '#id_activityid', '#id_badgeid',
             '#id_grade_operator', '#id_enable_bonus', '#id_dry_run', 
-            '#id_require_submitted', '#id_require_graded', '#id_forum_count_type'
+            '#id_require_submitted', '#id_require_graded', '#id_forum_count_type',
+            '#id_submission_type'
         ].join(', ');
         
-        var textInputs = '#id_grade_min, #id_forum_post_count, #id_bonus_points, #id_notify_message';
+        var textInputs = '#id_grade_min, #id_grade_max, #id_forum_post_count, #id_bonus_points, #id_notify_message, #id_early_hours';
 
         $(document).on('change', inputs, function() {
             updateForumCountLabel();
@@ -431,6 +539,106 @@ require(['jquery'], function($) {
 });
 JS
 );
+
+        // JS Complementario para la selección global
+        $PAGE->requires->js_init_code(<<<JS
+require(['jquery'], function($) {
+    $(function() {
+        var courseid = {$courseid};
+        var globalContainer = $('#local_automatic_badges_global_activities');
+        var listContainer = $('#local_automatic_badges_global_activities_list');
+        var selectAllBtn = $('#local_badges_select_all');
+        var isGlobalCheck = $('#id_is_global_rule');
+        var modTypeSelect = $('#id_global_mod_type');
+        var submitBtn = $('#id_submitbutton');
+        var originalBtnText = submitBtn.val();
+
+        function updateGlobalList() {
+            var criterion = $('#id_criterion_type').val();
+            var modType = modTypeSelect.val();
+            
+            if (!isGlobalCheck.is(':checked')) {
+                globalContainer.hide();
+                submitBtn.val(originalBtnText);
+                return;
+            }
+
+            globalContainer.show();
+            listContainer.html('<div class="p-3 text-center"><i class="fa fa-circle-o-notch fa-spin"></i> Cargando actividades...</div>');
+
+            $.ajax({
+                url: M.cfg.wwwroot + '/local/automatic_badges/ajax/load_activities.php',
+                data: {
+                    courseid: courseid,
+                    criterion_type: criterion,
+                    modname: modType,
+                    format: 'json'
+                },
+                dataType: 'json',
+                success: function(data) {
+                    listContainer.empty();
+                    if (!data || Object.keys(data).length === 0) {
+                        listContainer.append('<div class="local-automatic-badges-activity-selection__empty">No se encontraron actividades elegibles de este tipo.</div>');
+                        updateSubmitCount(0);
+                        return;
+                    }
+
+                    $.each(data, function(id, name) {
+                        var item = $('<div class="local-automatic-badges-activity-selection__item"></div>');
+                        var checkbox = $('<input type="checkbox" name="selected_activities[]" value="' + id + '" id="global_act_' + id + '" checked>');
+                        var label = $('<label for="global_act_' + id + '">' + name + '</label>');
+                        
+                        item.append(checkbox).append(label);
+                        listContainer.append(item);
+                        
+                        checkbox.on('change', function() {
+                            updateSubmitCount();
+                        });
+                    });
+                    
+                    updateSubmitCount();
+                }
+            });
+        }
+
+        function updateSubmitCount() {
+            if (!isGlobalCheck.is(':checked')) {
+                submitBtn.val(originalBtnText);
+                return;
+            }
+
+            var count = listContainer.find('input[type="checkbox"]:checked').length;
+            var text = 'Generar ' + count + ' insignias';
+            submitBtn.val(text);
+            
+            if (count > 0) {
+                submitBtn.removeClass('btn-secondary').addClass('btn-primary').prop('disabled', false);
+            } else {
+                submitBtn.addClass('btn-secondary').prop('disabled', true);
+            }
+        }
+
+        isGlobalCheck.on('change', updateGlobalList);
+        modTypeSelect.on('change', updateGlobalList);
+        $('#id_criterion_type').on('change', updateGlobalList);
+
+        selectAllBtn.on('click', function(e) {
+            e.preventDefault();
+            var checks = listContainer.find('input[type="checkbox"]');
+            var anyUnchecked = checks.filter(':not(:checked)').length > 0;
+            checks.prop('checked', anyUnchecked);
+            updateSubmitCount();
+            $(this).text(anyUnchecked ? 'Deseleccionar todas' : 'Seleccionar todas');
+        });
+
+        // Init
+        if (isGlobalCheck.is(':checked')) {
+            updateGlobalList();
+        }
+    });
+});
+JS
+);
     }
 
     public function validation($data, $files) {
@@ -439,10 +647,20 @@ JS
         $criterion = $data['criterion_type'] ?? 'grade';
         $this->eligibleactivities = \local_automatic_badges\helper::get_eligible_activities($courseid, $criterion);
         $activityid = isset($data['activityid']) ? (int)$data['activityid'] : 0;
-        if (empty($this->eligibleactivities)) {
-            $errors['activityid'] = get_string('noeligibleactivities', 'local_automatic_badges');
-        } else if (!array_key_exists($activityid, $this->eligibleactivities)) {
-            $errors['activityid'] = get_string('activitynoteligible', 'local_automatic_badges');
+        
+        // Si es global, saltamos validación de activityid
+        if (!empty($data['is_global_rule'])) {
+            unset($errors['activityid']); 
+            if (empty($data['global_mod_type'])) {
+                $errors['global_mod_type'] = get_string('required');
+            }
+        } else {
+            // Validación estándar
+            if (empty($this->eligibleactivities)) {
+                $errors['activityid'] = get_string('noeligibleactivities', 'local_automatic_badges');
+            } else if (!array_key_exists($activityid, $this->eligibleactivities)) {
+                $errors['activityid'] = get_string('activitynoteligible', 'local_automatic_badges');
+            }
         }
 
         if (($data['criterion_type'] ?? '') === 'forum') {

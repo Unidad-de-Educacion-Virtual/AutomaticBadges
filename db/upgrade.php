@@ -131,5 +131,61 @@ function xmldb_local_automatic_badges_upgrade(int $oldversion): bool {
         upgrade_plugin_savepoint(true, 2026011702, 'local', 'automatic_badges');
     }
 
+    // Upgrade para Fase 2: campos mejorados de criterios
+    if ($oldversion < 2026011800) {
+        $table = new xmldb_table('local_automatic_badges_rules');
+
+        // grade_max - Para rangos de calificación (RF01)
+        $field = new xmldb_field('grade_max', XMLDB_TYPE_NUMBER, '10,2', null, null, null, null, 'grade_min');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        // submission_type - Tipo de entrega: any, ontime, early (RF04)
+        $field = new xmldb_field('submission_type', XMLDB_TYPE_CHAR, '20', null, null, null, 'any', 'require_graded');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        // early_hours - Horas antes del deadline para entrega "rápida" (RF04)
+        $field = new xmldb_field('early_hours', XMLDB_TYPE_INTEGER, '10', null, null, null, '24', 'submission_type');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        upgrade_plugin_savepoint(true, 2026011800, 'local', 'automatic_badges');
+    }
+
+    // Upgrade para Fase 2: campos de workshop y section
+    if ($oldversion < 2026011801) {
+        $table = new xmldb_table('local_automatic_badges_rules');
+
+        // workshop_submission - Requiere envío en el taller
+        $field = new xmldb_field('workshop_submission', XMLDB_TYPE_INTEGER, '1', null, null, null, '1', 'early_hours');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        // workshop_assessments - Número de evaluaciones de pares requeridas
+        $field = new xmldb_field('workshop_assessments', XMLDB_TYPE_INTEGER, '10', null, null, null, '2', 'workshop_submission');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        // section_id - ID de la sección del curso para criterios acumulativos
+        $field = new xmldb_field('section_id', XMLDB_TYPE_INTEGER, '10', null, null, null, null, 'workshop_assessments');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        // section_min_grade - Calificación promedio mínima en la sección
+        $field = new xmldb_field('section_min_grade', XMLDB_TYPE_NUMBER, '10,2', null, null, null, '60', 'section_id');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        upgrade_plugin_savepoint(true, 2026011801, 'local', 'automatic_badges');
+    }
+
     return true;
 }
