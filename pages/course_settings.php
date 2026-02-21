@@ -164,8 +164,15 @@ function render_rules_tab($courseid, $OUTPUT, $PAGE, $DB, $page, $perpage, $sort
         ['class' => 'btn btn-outline-primary ml-2']
     );
 
+    $btndesigner = html_writer::link(
+        new moodle_url('/local/automatic_badges/pages/badge_designer.php', ['id' => $courseid]),
+        html_writer::tag('i', '', ['class' => 'fa fa-paint-brush mr-2']) .
+        "Diseñar Insignia", // Hardcoded for mockup
+        ['class' => 'btn btn-outline-info ml-2']
+    );
+
     echo html_writer::div(
-        $btnindividual . $btnglobal,
+        $btnindividual . $btnglobal . $btndesigner,
         'local-automatic-badges-actions mb-3 d-flex align-items-center'
     );
 
