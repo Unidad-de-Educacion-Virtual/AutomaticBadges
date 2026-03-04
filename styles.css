@@ -389,6 +389,9 @@ body.dark-mode .template-card {
     max-height: 250px;
     overflow-y: auto;
     padding: 0.5rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 0.25rem 1rem;
 }
 
 .local-automatic-badges-activity-selection__item {
@@ -418,6 +421,7 @@ body.dark-mode .template-card {
     text-align: center;
     color: var(--gray-600, #6c757d);
     font-style: italic;
+    grid-column: 1 / -1;
 }
 
 #local_automatic_badges_gen_count_badge {

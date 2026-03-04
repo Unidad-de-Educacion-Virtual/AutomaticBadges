@@ -12,7 +12,7 @@ $context  = context_course::instance($courseid);
 
 // === Tab activa ===
 $currenttab = optional_param('tab', 'rules', PARAM_ALPHA);
-$validtabs = ['rules', 'badges', 'templates', 'history', 'settings'];
+$validtabs = ['rules', 'badges', 'templates', 'history', 'settings', 'testlogic'];
 if (!in_array($currenttab, $validtabs)) {
     $currenttab = 'rules';
 }
@@ -85,6 +85,43 @@ if (!empty($ruleaction)) {
     redirect(new moodle_url($PAGE->url, ['tab' => 'rules']), $message, 0, $type);
 }
 
+// === Procesar acciones de Test Logic ===
+$testaction = optional_param('testaction', '', PARAM_ALPHA);
+if (!empty($testaction) && $currenttab === 'testlogic' && confirm_sesskey()) {
+    $targetuserid = optional_param('userid', 0, PARAM_INT);
+    $targetruleid = optional_param('ruleid', 0, PARAM_INT);
+    
+    if ($testaction === 'retroactive' && $targetruleid > 0) {
+        $rule = $DB->get_record('local_automatic_badges_rules', ['id' => $targetruleid]);
+        if ($rule && $DB->record_exists('badge', ['id' => $rule->badgeid])) {
+            $users = get_enrolled_users($context);
+            $awarded = 0;
+            foreach ($users as $u) {
+                if (\local_automatic_badges\rule_engine::check_rule($rule, $u->id)) {
+                    $badge = new \core_badges\badge($rule->badgeid);
+                    if (!$badge->is_issued($u->id)) {
+                        $badge->issue($u->id);
+                        $awarded++;
+                    }
+                }
+            }
+            $message = "Revisión retroactiva completada. Insignias otorgadas: {$awarded}";
+            redirect(new moodle_url($PAGE->url, ['tab' => 'testlogic']), $message, 0, \core\output\notification::NOTIFY_SUCCESS);
+        } else {
+            redirect(new moodle_url($PAGE->url, ['tab' => 'testlogic']), 'La insignia base fue eliminada', 0, \core\output\notification::NOTIFY_ERROR);
+        }
+    } elseif ($testaction === 'force_award' && $targetruleid > 0 && $targetuserid > 0) {
+        $rule = $DB->get_record('local_automatic_badges_rules', ['id' => $targetruleid]);
+        if ($rule && $DB->record_exists('badge', ['id' => $rule->badgeid]) && \local_automatic_badges\rule_engine::check_rule($rule, $targetuserid)) {
+            $badge = new \core_badges\badge($rule->badgeid);
+            if (!$badge->is_issued($targetuserid)) {
+                $badge->issue($targetuserid);
+                redirect(new moodle_url($PAGE->url, ['tab' => 'testlogic', 'userid' => $targetuserid]), 'Insignia otorgada manualmente.', 0, \core\output\notification::NOTIFY_SUCCESS);
+            }
+        }
+    }
+}
+
 
 // === Encabezado ===
 echo $OUTPUT->header();
@@ -99,6 +136,7 @@ $tabdefs = [
     'badges' => ['label' => get_string('tab_badges', 'local_automatic_badges'), 'icon' => 'fa-certificate'],
     'templates' => ['label' => get_string('tab_templates', 'local_automatic_badges'), 'icon' => 'fa-copy'],
     'history' => ['label' => get_string('tab_history', 'local_automatic_badges'), 'icon' => 'fa-clock-rotate-left'],
+    'testlogic' => ['label' => 'Diagnóstico', 'icon' => 'fa-stethoscope'],
     'settings' => ['label' => get_string('tab_settings', 'local_automatic_badges'), 'icon' => 'fa-gear'],
 ];
 
@@ -127,6 +165,9 @@ switch ($currenttab) {
         break;
     case 'history':
         render_history_tab($courseid, $OUTPUT, $DB);
+        break;
+    case 'testlogic':
+        render_testlogic_tab($courseid, $OUTPUT, $DB, $PAGE, $context);
         break;
     case 'settings':
         render_settings_tab($courseid, $OUTPUT, $DB);
@@ -199,31 +240,38 @@ function render_rules_tab($courseid, $OUTPUT, $PAGE, $DB, $page, $perpage, $sort
 
     foreach ($rules as $rule) {
         $badgerec = $DB->get_record('badge', ['id' => $rule->badgeid]);
-        if (!$badgerec) {
-            continue; // Badge was deleted
-        }
 
-        $badgeobj = new \core_badges\badge($badgerec->id);
         $ruleenabled = isset($rule->enabled) ? (int)$rule->enabled : 1;
         $rulestatustext = get_string($ruleenabled ? 'ruleenabled' : 'ruledisabled', 'local_automatic_badges');
         $criteriatype = ucfirst($rule->criterion_type);
 
-        // Badge image
-        $badgeimageurl = moodle_url::make_pluginfile_url(
-            $badgeobj->get_context()->id,
-            'badges',
-            'badgeimage',
-            $badgeobj->id,
-            '/',
-            'f2',
-            false
-        );
-        $badgeimageurl->param('refresh', rand(1, 10000));
-        $badgeimagetag = html_writer::empty_tag('img', [
-            'src' => $badgeimageurl->out(false),
-            'alt' => format_string($badgerec->name),
-            'style' => 'width: 40px; height: 40px; object-fit: contain;'
-        ]);
+        if (!$badgerec) {
+            // Badge was deleted, show a warning instead of the image/link
+            $badgeimagetag = html_writer::tag('i', '', ['class' => 'fa fa-exclamation-triangle text-danger', 'title' => 'Insignia eliminada', 'style' => 'font-size: 24px;']);
+            $badgename_display = html_writer::span('Insignia Eliminada', 'text-danger font-weight-bold');
+            $statusclass = 'badge-danger';
+            $rulestatustext = 'Error';
+        } else {
+            $badgeobj = new \core_badges\badge($badgerec->id);
+            // Badge image
+            $badgeimageurl = moodle_url::make_pluginfile_url(
+                $badgeobj->get_context()->id,
+                'badges',
+                'badgeimage',
+                $badgeobj->id,
+                '/',
+                'f2',
+                false
+            );
+            $badgeimageurl->param('refresh', rand(1, 10000));
+            $badgeimagetag = html_writer::empty_tag('img', [
+                'src' => $badgeimageurl->out(false),
+                'alt' => format_string($badgerec->name),
+                'style' => 'width: 40px; height: 40px; object-fit: contain;'
+            ]);
+            $badgename_display = format_string($badgerec->name);
+            $statusclass = $ruleenabled ? 'badge-success' : 'badge-secondary';
+        }
 
         // Action buttons
         $editurl = new moodle_url('/local/automatic_badges/edit_rule.php', ['id' => $rule->id]);
@@ -264,15 +312,14 @@ function render_rules_tab($courseid, $OUTPUT, $PAGE, $DB, $page, $perpage, $sort
         $actions .= html_writer::end_div();
 
         // Status badge
-        $statusclass = $ruleenabled ? 'badge-success' : 'badge-secondary';
         $statusbadge = html_writer::span($rulestatustext, 'badge ' . $statusclass);
 
         echo html_writer::start_tag('tr');
-        echo html_writer::tag('td', $badgeimagetag);
-        echo html_writer::tag('td', format_string($badgerec->name));
-        echo html_writer::tag('td', $criteriatype);
-        echo html_writer::tag('td', $statusbadge);
-        echo html_writer::tag('td', $actions, ['style' => 'text-align: center;']);
+        echo html_writer::tag('td', $badgeimagetag, ['class' => 'text-center align-middle']);
+        echo html_writer::tag('td', $badgename_display, ['class' => 'align-middle']);
+        echo html_writer::tag('td', $criteriatype, ['class' => 'align-middle']);
+        echo html_writer::tag('td', $statusbadge, ['class' => 'align-middle']);
+        echo html_writer::tag('td', $actions, ['style' => 'text-align: center;', 'class' => 'align-middle']);
         echo html_writer::end_tag('tr');
     }
 
@@ -615,4 +662,207 @@ function render_settings_tab($courseid, $OUTPUT, $DB) {
     echo html_writer::end_div(); // card
 
     echo html_writer::end_tag('form');
+}
+
+/**
+ * Render the Test Logic / Diagnostic tab content.
+ */
+function render_testlogic_tab($courseid, $OUTPUT, $DB, $PAGE, $context) {
+    global $CFG;
+    require_once($CFG->libdir . '/gradelib.php');
+    require_once($CFG->dirroot . '/grade/querylib.php');
+
+    $userid = optional_param('userid', 0, PARAM_INT);
+    
+    echo html_writer::tag('h4', 'Herramienta de Diagnóstico', ['class' => 'mb-3']);
+    echo html_writer::tag('p', 'Verifica qué usuarios cumplen con los criterios de las reglas o aplica revisiones retroactivas.', ['class' => 'text-muted mb-4']);
+
+    // 1. Select User
+    $users = get_enrolled_users($context);
+    
+    echo '<form method="get" class="mb-4 d-flex align-items-center flex-wrap p-3 bg-light border rounded">';
+    echo '<input type="hidden" name="id" value="'.$courseid.'">';
+    echo '<input type="hidden" name="tab" value="testlogic">';
+    echo '<label class="mr-3 font-weight-bold mb-0" style="white-space: nowrap;"><i class="fa fa-user mr-1"></i> Seleccionar usuario a evaluar:</label>';
+    echo '<div style="flex: 1; min-width: 250px; max-width: 400px;" class="mr-3 mb-0">';
+    echo '<select id="testlogic-user-select" name="userid" class="custom-select w-100">';
+    echo '<option value="0">-- Ver listado de reglas --</option>';
+    foreach ($users as $u) {
+        $selected = ($u->id == $userid) ? 'selected' : '';
+        echo "<option value='{$u->id}' {$selected}>" . fullname($u) . "</option>";
+    }
+    echo '</select>';
+    echo '</div>';
+    echo '<button type="submit" class="btn btn-primary btn-sm mb-0"><i class="fa fa-search"></i> Consultar</button>';
+    echo '</form>';
+    
+    $PAGE->requires->js_amd_inline("
+        require(['core/form-autocomplete', 'jquery'], function(autocomplete, $) {
+            // Inicializar como selector único (tags = false, ajax = false)
+            autocomplete.enhance('#testlogic-user-select', false, false, 'Escribe un nombre...');
+            $('#testlogic-user-select').on('change', function() {
+                if ($(this).val() !== '' && $(this).val() != '0') {
+                    $(this).closest('form').submit();
+                }
+            });
+        });
+    ");
+
+    // 2. Load Rules
+    $rules = $DB->get_records('local_automatic_badges_rules', ['courseid' => $courseid]);
+
+    if (empty($rules)) {
+        echo $OUTPUT->notification('No hay reglas configuradas en este curso.', 'info');
+        return;
+    }
+
+    if ($userid) {
+        $selecteduser = $users[$userid] ?? null;
+        if (!$selecteduser) {
+            echo $OUTPUT->notification('Usuario no encontrado o no matriculado.', 'error');
+            return;
+        }
+
+        echo html_writer::tag('h5', 'Evaluando reglas para: <span class="text-primary">' . fullname($selecteduser) . '</span>', ['class' => 'mb-3']);
+
+        echo '<div class="table-responsive">';
+        echo '<table class="table table-bordered table-striped table-hover bg-white">';
+        echo '<thead class="thead-light"><tr><th>ID Regla</th><th>Actividad</th><th>Insignia</th><th>Criterio</th><th>Estado Actual</th><th>¿Cumple Regla?</th><th>¿Insignia Emitida?</th><th>Acción</th></tr></thead>';
+        echo '<tbody>';
+
+        foreach ($rules as $rule) {
+            $cm = get_coursemodule_from_id(null, $rule->activityid, $courseid, false, IGNORE_MISSING);
+            $activityName = $cm ? format_string($cm->name) : "<span class='text-danger'>Desconocida (ID: {$rule->activityid})</span>";
+
+            // Get Real Grade
+            $gradeInfo = _testlogic_get_grade($courseid, $userid, $cm);
+            if ($rule->criterion_type === 'grade') {
+                 $gradeInfo .= " (Mínimo: {$rule->grade_min}%)";
+            } elseif ($rule->criterion_type === 'forum') {
+                 $gradeInfo = "<span class='text-muted'>Revisado por posts</span>";
+            } else if ($rule->is_global_rule) {
+                 $gradeInfo = "<span class='text-muted'>Regla Global ({$rule->activity_type})</span>";
+                 $activityName = "Múltiples";
+            }
+
+            // Logic Check
+            $meetsRule = \local_automatic_badges\rule_engine::check_rule($rule, $userid);
+            $logicResult = $meetsRule ? '<span class="badge badge-success p-2"><i class="fa fa-check"></i> SÍ</span>' : '<span class="badge badge-danger p-2"><i class="fa fa-times"></i> NO</span>';
+
+            // Check if badge exists before loading it
+            if (!$DB->record_exists('badge', ['id' => $rule->badgeid])) {
+                echo "<tr>";
+                echo "<td>{$rule->id}</td>";
+                echo "<td>{$activityName}</td>";
+                echo "<td><span class='text-danger'>Insignia Eliminada</span></td>";
+                echo "<td>".ucfirst($rule->criterion_type)."</td>";
+                echo "<td>{$gradeInfo}</td>";
+                echo "<td class='text-center align-middle'>{$logicResult}</td>";
+                echo "<td class='text-center align-middle'><span class='badge badge-danger p-2'>ERROR</span></td>";
+                echo "<td class='text-center align-middle'></td>";
+                echo "</tr>";
+                continue;
+            }
+
+            // Badge Issued Check
+            $badge = new \core_badges\badge($rule->badgeid);
+            $isIssued = $badge->is_issued($userid);
+            $issuedStatus = $isIssued ? '<span class="badge badge-success p-2"><i class="fa fa-award"></i> EMITIDA</span>' : '<span class="badge badge-warning p-2"><i class="fa fa-clock"></i> PENDIENTE</span>';
+
+            // Action Button
+            $btn = '';
+            if (!$isIssued && $meetsRule) {
+                $forceUrl = new moodle_url($PAGE->url, [
+                    'tab' => 'testlogic', 'userid' => $userid, 'ruleid' => $rule->id, 'testaction' => 'force_award', 'sesskey' => sesskey()
+                ]);
+                $btn = html_writer::link($forceUrl, '<i class="fa fa-bolt"></i> Forzar Entrega', ['class' => 'btn btn-sm btn-primary']);
+            }
+
+            $badgeUrl = new moodle_url('/badges/overview.php', ['id' => $rule->badgeid]);
+
+            echo "<tr>";
+            echo "<td>{$rule->id}</td>";
+            echo "<td>{$activityName}</td>";
+            echo "<td><a href='{$badgeUrl}' target='_blank'>".format_string($badge->name)."</a></td>";
+            echo "<td>".ucfirst($rule->criterion_type)."</td>";
+            echo "<td>{$gradeInfo}</td>";
+            echo "<td class='text-center align-middle'>{$logicResult}</td>";
+            echo "<td class='text-center align-middle'>{$issuedStatus}</td>";
+            echo "<td class='text-center align-middle'>{$btn}</td>";
+            echo "</tr>";
+        }
+        echo '</tbody></table></div>';
+    } else {
+        // Show Retroactive Check options if no user selected
+        echo html_writer::tag('h5', 'Reglas del Curso', ['class' => 'mb-3']);
+        echo '<div class="table-responsive">';
+        echo '<table class="table table-bordered table-striped table-hover bg-white">';
+        echo '<thead class="thead-light"><tr><th>ID Regla</th><th>Actividad</th><th>Insignia</th><th style="width: 250px;">Revisión Retroactiva</th></tr></thead>';
+        echo '<tbody>';
+        foreach ($rules as $rule) {
+            if ($rule->is_global_rule) {
+                $activityName = "<strong>Regla Global</strong> ({$rule->activity_type})";
+            } else {
+                $cm = get_coursemodule_from_id(null, $rule->activityid, $courseid, false, IGNORE_MISSING);
+                $activityName = $cm ? format_string($cm->name) : "<span class='text-danger'>Desconocida</span>";
+            }
+            
+            if (!$DB->record_exists('badge', ['id' => $rule->badgeid])) {
+                echo "<tr>";
+                echo "<td class='align-middle'>{$rule->id}</td>";
+                echo "<td class='align-middle'>{$activityName}</td>";
+                echo "<td class='align-middle'><span class='text-danger'>Insignia Eliminada</span></td>";
+                echo "<td class='text-center align-middle'><span class='text-muted'>Regla Inválida</span></td>";
+                echo "</tr>";
+                continue;
+            }
+            
+            $badge = new \core_badges\badge($rule->badgeid);
+            
+            $retroUrl = new moodle_url($PAGE->url, [
+                'tab' => 'testlogic', 'ruleid' => $rule->id, 'testaction' => 'retroactive', 'sesskey' => sesskey()
+            ]);
+            
+            echo "<tr>";
+            echo "<td class='align-middle'>{$rule->id}</td>";
+            echo "<td class='align-middle'>{$activityName}</td>";
+            echo "<td class='align-middle'>".format_string($badge->name)."</td>";
+            echo "<td class='text-center align-middle'>" . html_writer::link($retroUrl, '<i class="fa fa-users-cog"></i> Evaluar a Todos', ['class' => 'btn btn-sm btn-info btn-block', 'onclick' => 'return confirm("¿Seguro que deseas evaluar esta regla de forma retroactiva para todos los estudiantes matriculados?");']) . "</td>";
+            echo "</tr>";
+        }
+        echo '</tbody></table></div>';
+    }
+}
+
+/**
+ * Helper inside course_settings.php to get a mock grade for diagnostic tools.
+ */
+function _testlogic_get_grade($courseid, $userid, $cm) {
+    if (!$cm) return '-';
+    $grade_item = \grade_item::fetch([
+        'courseid' => $courseid,
+        'itemtype' => 'mod',
+        'itemmodule' => $cm->modname,
+        'iteminstance' => $cm->instance,
+        'itemnumber' => 0
+    ]);
+
+    if (!$grade_item) return '-';
+    
+    $grade = $grade_item->get_final($userid);
+    if ($grade && $grade->finalgrade !== null) {
+        $grademax = isset($grade_item->grademax) ? (float)$grade_item->grademax : 100.0;
+        $grademin = isset($grade_item->grademin) ? (float)$grade_item->grademin : 0.0;
+        $rawgrade = (float)$grade->finalgrade;
+        
+        $range = $grademax - $grademin;
+        if ($range > 0) {
+            $percentage = (($rawgrade - $grademin) / $range) * 100.0;
+            return format_float($percentage, 2) . '%';
+        } else {
+            return '0.00%';
+        }
+    }
+    
+    return '-';
 }

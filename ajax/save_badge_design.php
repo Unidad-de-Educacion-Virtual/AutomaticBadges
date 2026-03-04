@@ -52,6 +52,7 @@ try {
     $badge->courseid = $courseid;
     $badge->messagesubject = get_string('messagesubject', 'badges');
     $badge->message = get_string('messagebody', 'badges');
+    $badge->imagefile = 'f1.png'; // Specify image file name to make it look active initially
     $badge->attachment = 1;
     $badge->notification = 0;
     $badge->status = BADGE_STATUS_INACTIVE;
@@ -59,20 +60,18 @@ try {
 
     $badgeid = $DB->insert_record('badge', $badge);
 
-    // 3. Guardar la imagen en File API
-    $fs = get_file_storage();
-    $fileinfo = [
-        'contextid' => $context->id,
-        'component' => 'badges',
-        'filearea' => 'badgeimage',
-        'itemid' => $badgeid,
-        'filepath' => '/',
-        'filename' => 'f1.png', // Always save as f1.png or f1.jpg
-        'userid' => $USER->id
-    ];
+    // 3. Guardar la imagen en Moodle
     
-    // Check if image exists (shouldn't for new badge)
-    $fs->create_file_from_string($fileinfo, $imagedata);
+    // a. Create a physical temporary file from the base64 data
+    $tempdir = make_temp_directory('badges');
+    $tempfile = $tempdir . '/' . md5(time() . $USER->id) . '.png';
+    file_put_contents($tempfile, $imagedata);
+
+    // b. Use Moodle's built-in badge image processor to handle cropping and thumbnail generation
+    $badgeobj = new badge($badgeid);
+    badges_process_badge_image($badgeobj, $tempfile);
+
+    // Return success
 
     // Return success
     echo json_encode([

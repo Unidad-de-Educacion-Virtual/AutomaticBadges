@@ -16,11 +16,12 @@ $PAGE->set_title('Diseñador de Insignias');
 $PAGE->set_heading(format_string($COURSE->fullname));
 $PAGE->set_pagelayout('course');
 
+// 1. CARGA DE LIBRERÍAS EXTERNAS (Localmente)
+$PAGE->requires->css(new moodle_url('/local/automatic_badges/css/fontawesome.min.css'));
+
 echo $OUTPUT->header();
 echo $OUTPUT->heading('Diseñador de Insignias');
 
-// 1. CARGA DE LIBRERÍAS EXTERNAS (Localmente)
-$PAGE->requires->css(new moodle_url('/local/automatic_badges/css/fontawesome.min.css'));
 echo '<script>var _backup_define = window.define; window.define = undefined;</script>';
 echo '<script src="' . new moodle_url('/local/automatic_badges/js/fabric.min.js') . '"></script>';
 echo '<script src="' . new moodle_url('/local/automatic_badges/js/Sortable.min.js') . '"></script>';
@@ -341,6 +342,7 @@ $(function() {
             top: centerY - 20,
             originX: "center",
             originY: "center",
+            textBaseline: "bottom",
             selectable: true,
             name: 'Ícono Central'
         });
@@ -366,6 +368,7 @@ $(function() {
             originX: "center",
             originY: "center",
             textAlign: "center",
+            textBaseline: "bottom",
             selectable: true,
             name: 'Texto Principal'
         });
