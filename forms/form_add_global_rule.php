@@ -377,6 +377,22 @@ JS
             }
         }
 
+        if (($data['criterion_type'] ?? '') === 'grade') {
+            $grademin = isset($data['grade_min']) ? (float)$data['grade_min'] : 0.0;
+            if ($grademin < 0 || $grademin > 100) {
+                $errors['grade_min'] = get_string('grademin_invalid', 'local_automatic_badges');
+            }
+
+            if (isset($data['grade_operator']) && $data['grade_operator'] === 'range') {
+                $grademax = isset($data['grade_max']) ? (float)$data['grade_max'] : 100.0;
+                if ($grademax < 0 || $grademax > 100) {
+                    $errors['grade_max'] = get_string('grademax_invalid', 'local_automatic_badges');
+                } else if ($grademax < $grademin) {
+                    $errors['grade_max'] = get_string('grademax_lower', 'local_automatic_badges');
+                }
+            }
+        }
+
         return $errors;
     }
 }

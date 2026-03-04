@@ -245,7 +245,17 @@ class rule_engine {
             return null;
         }
 
-        return (float)$usergrade->grade;
+        // Calcular porcentaje basado en grademin y grademax de la actividad
+        $grademax = isset($item->grademax) ? (float)$item->grademax : 100.0;
+        $grademin = isset($item->grademin) ? (float)$item->grademin : 0.0;
+        $rawgrade = (float)$usergrade->grade;
+        
+        $range = $grademax - $grademin;
+        if ($range > 0) {
+            return (($rawgrade - $grademin) / $range) * 100.0;
+        } else {
+            return 0.0;
+        }
     }
 
     /**

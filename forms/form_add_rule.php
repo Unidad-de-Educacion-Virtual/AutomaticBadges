@@ -153,15 +153,48 @@ class local_automatic_badges_add_rule_form extends moodleform {
         ];
         $this->eligibleactivities = $criteriaactivities[$criterion] ?? [];
 
-        $mform->addElement('html', '<div id="local_automatic_badges_activity_container">');
-        $mform->addElement('select', 'activityid',
-            get_string('activitylinked', 'local_automatic_badges'), $this->eligibleactivities);
-        $mform->addHelpButton('activityid', 'activitylinked', 'local_automatic_badges');
+        // Hidden input that actually gets submitted
+        $mform->addElement('hidden', 'activityid', 0, ['id' => 'id_custom_activityid_field']);
         $mform->setType('activityid', PARAM_INT);
-        $mform->addElement('html',
-            '<div id="local_automatic_badges_activity_warning" class="alert alert-warning" style="display:none;">' .
-            get_string('noeligibleactivities', 'local_automatic_badges') . '</div>');
-        $mform->addElement('html', '</div>');
+
+        $noeligiblestr     = get_string('noeligibleactivities', 'local_automatic_badges');
+        $searchplaceholder = get_string('search', 'core');
+        $chooseplaceholder = get_string('activitylinked', 'local_automatic_badges');
+
+        $widget_html = '
+        <div id="local_automatic_badges_activity_container" style="position: relative; width: 100%;">
+            <!-- Select2-style dropdown -->
+            <div class="ab-select" id="ab_activity_select">
+                <button type="button"
+                        class="ab-select__trigger custom-select form-control"
+                        style="text-align: left; padding-right: 2rem; min-width: 350px;"
+                        id="ab_activity_trigger"
+                        aria-haspopup="listbox"
+                        aria-expanded="false">
+                    <span id="ab_activity_label" class="ab-select__label ab-select__label--placeholder" style="display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' .
+                        s($chooseplaceholder) . '...</span>
+                </button>
+                <div class="ab-select__dropdown" id="ab_activity_dropdown" role="listbox" aria-label="' . s($chooseplaceholder) . '">
+                    <div class="ab-select__search-wrap">
+                        <i class="fa fa-search ab-select__search-icon" aria-hidden="true"></i>
+                        <input type="text"
+                               id="ab_activity_search"
+                               class="ab-select__search form-control form-control-sm border-0"
+                               style="box-shadow: none; border-radius: 0;"
+                               placeholder="' . s($searchplaceholder) . '..."
+                               autocomplete="off"
+                               aria-label="' . s($searchplaceholder) . '" />
+                    </div>
+                    <div class="ab-select__options" id="ab_activity_options"></div>
+                </div>
+            </div>
+            <div id="local_automatic_badges_activity_warning" class="alert alert-warning mt-2" style="display:none;">' .
+            $noeligiblestr . '</div>
+        </div>
+        ';
+
+        $mform->addElement('static', 'activity_picker_dummy', get_string('activitylinked', 'local_automatic_badges'), $widget_html);
+
 
         // =====================================================================
         // SECTION 3: Insignia a otorgar
@@ -263,72 +296,173 @@ class local_automatic_badges_add_rule_form extends moodleform {
         $PAGE->requires->js_init_code(<<<JS
 require(['jquery'], function($) {
     $(function() {
-        var activityMap = {$activityjson};
-        var noActivitiesText = {$noactivities};
-        var container = $('#local_automatic_badges_activity_container');
-        var select = $('#id_activityid');
-        var warning = $('#local_automatic_badges_activity_warning');
+        var activityMap     = {$activityjson};
+        var currentActivities = {};
+        var selectedId   = 0;
+        var selectedName = '';
 
-        function setOptions(criterion) {
-            var activities = activityMap[criterion] || {};
-            var current = select.val();
-            select.empty();
+        var hiddenInput  = $('#id_custom_activityid_field');
+        if (!hiddenInput.length) {
+            hiddenInput = $('input[name="activityid"]');
+        }
+        var trigger      = $('#ab_activity_trigger');
+        var label        = $('#ab_activity_label');
+        var dropdown     = $('#ab_activity_dropdown');
+        var searchInput  = $('#ab_activity_search');
+        var optionsEl    = $('#ab_activity_options');
+        var warning      = $('#local_automatic_badges_activity_warning');
+        var selectWrap   = $('#ab_activity_select');
 
-            var hasOptions = false;
-            $.each(activities, function(id, name) {
-                hasOptions = true;
-                select.append($('<option></option>').val(id).text(name));
+        /* ---- Open / close the dropdown ---- */
+        function openDropdown() {
+            dropdown.addClass('ab-select__dropdown--open');
+            trigger.attr('aria-expanded', 'true');
+            selectWrap.addClass('ab-select--open');
+            searchInput.val('').focus();
+            renderOptions('');
+        }
+
+        function closeDropdown() {
+            dropdown.removeClass('ab-select__dropdown--open');
+            trigger.attr('aria-expanded', 'false');
+            selectWrap.removeClass('ab-select--open');
+        }
+
+        trigger.on('click', function(e) {
+            e.stopPropagation();
+            if (dropdown.hasClass('ab-select__dropdown--open')) {
+                closeDropdown();
+            } else {
+                openDropdown();
+            }
+        });
+
+        // Close on outside click
+        $(document).on('click', function(e) {
+            if (!$(e.target).closest('#ab_activity_select').length) {
+                closeDropdown();
+            }
+        });
+
+        // Close on Escape key
+        $(document).on('keydown', function(e) {
+            if (e.key === 'Escape') { closeDropdown(); }
+        });
+
+        /* ---- Render the options list, filtering by query ---- */
+        function renderOptions(filter) {
+            filter = (filter || '').toLowerCase().trim();
+            optionsEl.empty();
+
+            var count = 0;
+            $.each(currentActivities, function(id, name) {
+                if (filter && name.toLowerCase().indexOf(filter) === -1) { return; }
+                count++;
+                var isSelected = (String(id) === String(selectedId));
+                var escapedName = $('<div>').text(name).html();
+                var opt = $(
+                    '<div class="ab-select__option' + (isSelected ? ' ab-select__option--selected' : '') + '"' +
+                    ' role="option" aria-selected="' + (isSelected ? 'true' : 'false') + '" data-id="' + id + '">' +
+                    (isSelected ? '<i class="fa fa-check ab-select__option-check" aria-hidden="true"></i>' :
+                                  '<i class="fa fa-fw" aria-hidden="true"></i>') +
+                    '<span>' + escapedName + '</span>' +
+                    '</div>'
+                );
+                optionsEl.append(opt);
             });
 
-            if (current && Object.prototype.hasOwnProperty.call(activities, current)) {
-                select.val(current);
-            }
-
-            if (!hasOptions) {
-                warning.show();
-                select.prop('disabled', true);
-            } else {
-                warning.hide();
-                select.prop('disabled', false);
+            if (count === 0) {
+                optionsEl.html('<div class="ab-select__no-results"><i class="fa fa-search"></i> Sin resultados</div>');
             }
         }
 
+        /* ---- Update the trigger label ---- */
+        function updateTriggerLabel() {
+            if (selectedId && selectedName) {
+                label.text(selectedName).removeClass('ab-select__label--placeholder');
+            } else {
+                label.text('{$chooseplaceholder}...').addClass('ab-select__label--placeholder');
+            }
+        }
+
+        /* ---- Select an activity ---- */
+        function selectActivity(id, name) {
+            selectedId   = id;
+            selectedName = name;
+            hiddenInput.val(id).trigger('change');
+            updateTriggerLabel();
+            closeDropdown();
+            buildPreviewText();
+        }
+
+        /* ---- Click on an option ---- */
+        optionsEl.on('click', '.ab-select__option', function() {
+            var id   = $(this).data('id');
+            var name = $(this).find('span').text();
+            selectActivity(id, name);
+        });
+
+        /* ---- Live search filter ---- */
+        searchInput.on('input keyup', function() {
+            renderOptions($(this).val());
+        });
+
+        /* ---- Populate for the given criterion ---- */
+        function setOptions(criterion) {
+            currentActivities = activityMap[criterion] || {};
+            var keepId = String(selectedId);
+            if (!currentActivities.hasOwnProperty(keepId)) {
+                selectedId   = 0;
+                selectedName = '';
+                hiddenInput.val(0);
+            } else {
+                selectedName = currentActivities[keepId];
+            }
+            updateTriggerLabel();
+
+            var hasOptions = Object.keys(currentActivities).length > 0;
+            if (!hasOptions) {
+                warning.show();
+                selectWrap.hide();
+            } else {
+                warning.hide();
+                selectWrap.show();
+            }
+        }
+
+        // ---- Forum count label ----
         var forumCountLabels = {
-            'all': 'Publicaciones necesarias (temas o respuestas)',
+            'all':     'Publicaciones necesarias (temas o respuestas)',
             'replies': 'Respuestas necesarias',
-            'topics': 'Temas necesarios'
+            'topics':  'Temas necesarios'
         };
 
         function updateForumCountLabel() {
             var countType = $('#id_forum_count_type').val() || 'all';
-            var label = forumCountLabels[countType] || forumCountLabels['all'];
-            var labelEl = $('label[for="id_forum_post_count"]');
-            if (labelEl.length) {
-                labelEl.text(label);
-            }
-            $('#id_forum_post_count').closest('.form-group, .fitem').find('label').first().text(label);
+            var label2 = forumCountLabels[countType] || forumCountLabels['all'];
+            $('#id_forum_post_count').closest('.form-group, .fitem').find('label').first().text(label2);
         }
 
+        // ---- Rule preview ----
         function buildPreviewText() {
-            var criterion = $('#id_criterion_type').val();
+            var criterion      = $('#id_criterion_type').val();
             var criterionLabel = $('#id_criterion_type option:selected').text();
-            var enabled = $('#id_enabled').is(':checked');
-            var activityVal = $('#id_activityid').val();
-            var activityName = $('#id_activityid option:selected').text();
-            var badgeName = $('#id_badgeid option:selected').text();
-            var gradeMin = $('#id_grade_min').val();
+            var enabled        = $('#id_enabled').is(':checked');
+            var activityVal    = hiddenInput.val();
+            var badgeName      = $('#id_badgeid option:selected').text();
+            var gradeMin       = $('#id_grade_min').val();
             var gradeOperatorRaw = $('#id_grade_operator').val();
-            var countType = $('#id_forum_count_type').val();
-            var forumPosts = $('#id_forum_post_count').val() || '5';
-            var enableBonus = $('#id_enable_bonus').is(':checked');
-            var bonusPoints = $('#id_bonus_points').val();
-            var dryRun = $('#id_dry_run').is(':checked');
-            var reqSubmitted = $('#id_require_submitted').is(':checked');
-            var reqGraded = $('#id_require_graded').is(':checked');
+            var countType      = $('#id_forum_count_type').val();
+            var forumPosts     = $('#id_forum_post_count').val() || '5';
+            var enableBonus    = $('#id_enable_bonus').is(':checked');
+            var bonusPoints    = $('#id_bonus_points').val();
+            var dryRun         = $('#id_dry_run').is(':checked');
+            var reqSubmitted   = $('#id_require_submitted').is(':checked');
+            var reqGraded      = $('#id_require_graded').is(':checked');
             var submissionType = $('#id_submission_type').val() || 'any';
-            var earlyHours = $('#id_early_hours').val() || '24';
-            var gradeMax = $('#id_grade_max').val();
-            var notifyMessage = $('#id_notify_message').val();
+            var earlyHours     = $('#id_early_hours').val() || '24';
+            var gradeMax       = $('#id_grade_max').val();
+            var notifyMessage  = $('#id_notify_message').val();
 
             var parts = [];
 
@@ -343,8 +477,8 @@ require(['jquery'], function($) {
             parts.push('<div class="mt-2">');
             parts.push('<i class="fa fa-filter text-muted"></i> <strong>Criterio:</strong> ' + criterionLabel);
 
-            if (activityVal && activityName) {
-                parts.push('<br><i class="fa fa-link text-muted"></i> <strong>Actividad:</strong> ' + activityName);
+            if (activityVal && activityVal !== '0' && selectedName) {
+                parts.push('<br><i class="fa fa-link text-muted"></i> <strong>Actividad:</strong> ' + $('<div>').text(selectedName).html());
             } else {
                 parts.push('<br><i class="fa fa-link text-muted"></i> <strong>Actividad:</strong> <em class="text-danger">Sin seleccionar</em>');
             }
@@ -352,23 +486,22 @@ require(['jquery'], function($) {
 
             var conditionHtml = '';
             if (criterion === 'grade') {
-                var op = gradeOperatorRaw || '>=';
+                var op  = gradeOperatorRaw || '>=';
                 var min = gradeMin || '0';
                 if (op === 'range' && gradeMax) {
                     conditionHtml = 'Calificación entre <strong class="text-primary">' + min + '%</strong> y <strong class="text-primary">' + gradeMax + '%</strong>';
                 } else if (op === 'range') {
-                    conditionHtml = 'Calificación entre <strong class="text-primary">' + min + '%</strong> y <strong class="text-primary">100%</strong>';
+                    conditionHtml = 'Calificación entre <strong class="text-primary">' + min + '%</strong> y <strong class="text-primary">Sin límite superior</strong>';
                 } else {
                     conditionHtml = 'Calificación ' + op + ' <strong class="text-primary">' + min + '%</strong>';
                 }
             } else if (criterion === 'forum') {
-                var posts = forumPosts || '5';
                 var typeLabel = countType === 'replies' ? 'respuesta(s)' : (countType === 'topics' ? 'tema(s) nuevo(s)' : 'publicación(es)');
-                conditionHtml = 'Mínimo <strong class="text-primary">' + posts + '</strong> ' + typeLabel + ' en el foro';
+                conditionHtml = 'Mínimo <strong class="text-primary">' + (forumPosts || '5') + '</strong> ' + typeLabel + ' en el foro';
             } else if (criterion === 'submission') {
                 var conds = [];
                 if (reqSubmitted) conds.push('entrega realizada');
-                if (reqGraded) conds.push('calificación publicada');
+                if (reqGraded)    conds.push('calificación publicada');
                 if (submissionType === 'ontime') {
                     conds.push('<strong class="text-success">a tiempo</strong>');
                 } else if (submissionType === 'early') {
@@ -407,8 +540,9 @@ require(['jquery'], function($) {
             $('#local_automatic_badges_rule_preview_text').html(parts.join(''));
         }
 
+        // ---- Wire up remaining form change events ----
         var inputs = [
-            '#id_criterion_type', '#id_enabled', '#id_activityid', '#id_badgeid',
+            '#id_criterion_type', '#id_enabled', '#id_badgeid',
             '#id_grade_operator', '#id_enable_bonus', '#id_dry_run',
             '#id_require_submitted', '#id_require_graded', '#id_forum_count_type',
             '#id_submission_type'
@@ -426,6 +560,18 @@ require(['jquery'], function($) {
             updateForumCountLabel();
             buildPreviewText();
         });
+
+        // ---- Pre-select existing value when editing ----
+        var preselectedId   = parseInt(hiddenInput.val(), 10) || 0;
+        var preselectedName = '';
+        if (preselectedId) {
+            var criterionActs = activityMap['{$criterion}'] || {};
+            if (criterionActs.hasOwnProperty(preselectedId)) {
+                preselectedName = criterionActs[preselectedId];
+            }
+        }
+        selectedId   = preselectedId;
+        selectedName = preselectedName;
 
         setOptions('{$criterion}');
         updateForumCountLabel();
@@ -455,6 +601,22 @@ JS
             $requiredposts = isset($data['forum_post_count']) ? (int)$data['forum_post_count'] : 0;
             if ($requiredposts <= 0) {
                 $errors['forum_post_count'] = get_string('forumpostcounterror', 'local_automatic_badges');
+            }
+        }
+
+        if ($criterion === 'grade') {
+            $grademin = isset($data['grade_min']) ? (float)$data['grade_min'] : 0.0;
+            if ($grademin < 0 || $grademin > 100) {
+                $errors['grade_min'] = get_string('grademin_invalid', 'local_automatic_badges');
+            }
+
+            if (isset($data['grade_operator']) && $data['grade_operator'] === 'range') {
+                $grademax = isset($data['grade_max']) ? (float)$data['grade_max'] : 100.0;
+                if ($grademax < 0 || $grademax > 100) {
+                    $errors['grade_max'] = get_string('grademax_invalid', 'local_automatic_badges');
+                } else if ($grademax < $grademin) {
+                    $errors['grade_max'] = get_string('grademax_lower', 'local_automatic_badges');
+                }
             }
         }
 

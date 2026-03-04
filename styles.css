@@ -423,3 +423,129 @@ body.dark-mode .template-card {
 #local_automatic_badges_gen_count_badge {
     transition: all 0.2s ease;
 }
+
+/* ============================================
+   SEARCHABLE ACTIVITY SELECT (Select2-style)
+   ============================================ */
+
+/* Wrapper — provides positioning context for the floating dropdown */
+.ab-select {
+    position: relative;
+    width: 100%;
+}
+
+/* Trigger button — extends Moodle native form-control/custom-select */
+.ab-select__trigger {
+    cursor: pointer;
+    background-color: var(--white, #fff);
+}
+
+.ab-select--open .ab-select__trigger {
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    outline: 0;
+}
+
+.ab-select__label--placeholder {
+    color: var(--gray-500, #6c757d);
+}
+
+/* Floating dropdown panel */
+.ab-select__dropdown {
+    display: none;
+    position: absolute;
+    top: calc(100% + 2px);
+    left: 0;
+    right: 0;
+    z-index: 1050;
+    background: var(--white, #fff);
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    border-radius: 0.25rem;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    overflow: hidden;
+}
+
+.ab-select__dropdown--open {
+    display: block;
+}
+
+/* Search input inside the dropdown */
+.ab-select__search-wrap {
+    position: relative;
+    border-bottom: 1px solid var(--gray-200, #e9ecef);
+    background: var(--gray-100, #f8f9fa);
+    padding: 0.25rem;
+}
+
+.ab-select__search-icon {
+    position: absolute;
+    left: 0.65rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--gray-500, #adb5bd);
+    pointer-events: none;
+    font-size: 0.8rem;
+    z-index: 2;
+}
+
+.ab-select__search {
+    display: block;
+    width: 100%;
+    padding: 0.25rem 0.5rem 0.25rem 1.6rem !important;
+    font-size: 0.85rem !important;
+    background: var(--white, #fff) !important;
+}
+
+.ab-select__search:focus {
+    background: var(--white, #fff);
+}
+
+/* Options list */
+.ab-select__options {
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+.ab-select__option {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.3rem 0.6rem;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: background 0.1s ease;
+    color: var(--gray-800, #343a40);
+    border-bottom: 1px solid var(--gray-200, #f1f3f5);
+}
+
+.ab-select__option:last-child {
+    border-bottom: none;
+}
+
+.ab-select__option:hover {
+    background: var(--gray-100, #f8f9fa);
+}
+
+.ab-select__option--selected {
+    background: rgba(15, 108, 191, 0.07);
+    font-weight: 600;
+    color: var(--primary, #0f6cbf);
+}
+
+.ab-select__option--selected:hover {
+    background: rgba(15, 108, 191, 0.12);
+}
+
+.ab-select__option-check {
+    font-size: 0.8rem;
+    color: var(--primary, #0f6cbf);
+    flex-shrink: 0;
+}
+
+.ab-select__no-results {
+    padding: 0.6rem 0.8rem;
+    text-align: center;
+    color: var(--gray-500, #adb5bd);
+    font-size: 0.85rem;
+    font-style: italic;
+}

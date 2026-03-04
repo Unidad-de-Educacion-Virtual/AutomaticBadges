@@ -27,9 +27,6 @@ $PAGE->set_pagelayout('course');
 $PAGE->set_title(get_string('coursenode_title', 'local_automatic_badges'));
 $PAGE->set_heading(format_string($course->fullname));
 
-echo $OUTPUT->header();
-echo $OUTPUT->heading(get_string('editrule', 'local_automatic_badges'), 2);
-
 // Build form with the same definition used to add rules.
 $mform = new local_automatic_badges_add_rule_form(null, [
     'courseid' => $course->id,
@@ -41,22 +38,8 @@ if ($mform->is_cancelled()) {
     redirect(new moodle_url('/local/automatic_badges/course_settings.php', ['id' => $course->id]));
 }
 
-$data = $mform->get_data();
-
-// === DRY-RUN EVALUATION ===
-// If runtest=1 from URL (after saving from add_rule.php), evaluate using stored rule
-if ($runtest && !$data) {
-    echo $OUTPUT->notification(
-        get_string('dryrunresult_saverulefirst', 'local_automatic_badges'),
-        \core\output\notification::NOTIFY_SUCCESS
-    );
-    
-    $results = \local_automatic_badges\dry_run_evaluator::evaluate($course->id, $rule);
-    echo \local_automatic_badges\dry_run_evaluator::render_results($OUTPUT, $results);
-}
-
 // === FORM SUBMISSION PROCESSING ===
-if ($data) {
+if ($data = $mform->get_data()) {
     $isTestRun = !empty($data->testrule);
 
     // Usar rule_manager para procesar la regla
@@ -84,8 +67,25 @@ if ($data) {
 
 // Populate form defaults with current rule data using rule_manager.
 $defaults = rule_manager::get_form_defaults($rule, $course->id);
-
 $mform->set_data($defaults);
+
+// === START PAGE OUTPUT ===
+echo $OUTPUT->header();
+echo $OUTPUT->heading(get_string('editrule', 'local_automatic_badges'), 2);
+
+// === DRY-RUN EVALUATION ===
+// If runtest=1 from URL (after saving from add_rule.php), evaluate using stored rule
+if ($runtest && !$data) {
+    echo $OUTPUT->notification(
+        get_string('dryrunresult_saverulefirst', 'local_automatic_badges'),
+        \core\output\notification::NOTIFY_SUCCESS
+    );
+    
+    $results = \local_automatic_badges\dry_run_evaluator::evaluate($course->id, $rule);
+    echo \local_automatic_badges\dry_run_evaluator::render_results($OUTPUT, $results);
+}
+
+
 $mform->display();
 
 echo $OUTPUT->footer();
