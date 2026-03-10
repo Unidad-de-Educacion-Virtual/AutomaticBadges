@@ -467,7 +467,9 @@ $(function() {
                 dataType: "json",
                 success: function(r) {
                     if (r.success) {
-                        window.location.href = M.cfg.wwwroot + "/local/automatic_badges/course_settings.php?id=" + {$courseid} + "&tab=badges";
+                        // Redirect to Moodle's full badge editor so the user can
+                        // activate the badge, set expiry, criteria, etc.
+                        window.location.href = M.cfg.wwwroot + "/badges/edit.php?id=" + r.badgeid + "&action=badge";
                     } else { 
                         alert(r.message); 
                         btn.prop("disabled", false).html('<i class="fa fa-save"></i> Guardar Insignia'); 

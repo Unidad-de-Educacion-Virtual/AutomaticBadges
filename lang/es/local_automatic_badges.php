@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 defined('MOODLE_INTERNAL') || die();
 
 // Nombre del plugin.
@@ -30,6 +30,7 @@ $string['criteriontype'] = 'Tipo de criterio';
 $string['criteriontype_help'] = 'Elige la condición que debe cumplirse antes de otorgar la insignia.';
 $string['criterion_grade'] = 'Por calificación mínima';
 $string['criterion_forum'] = 'Por participación en foros';
+$string['criterion_forum_grade'] = 'Por nota en foro';
 $string['criterion_submission'] = 'Por entrega de actividad';
 $string['criterion_workshop'] = 'Por participación en taller';
 $string['criterion_section'] = 'Por completar sección (acumulativo)';
@@ -87,7 +88,8 @@ $string['globallimit'] = 'Actividades a procesar';
 $string['globallimit_all'] = 'Todas las actividades disponibles';
 $string['globallimit_first'] = 'Primeras {$a} actividades';
 $string['globalrule_summary'] = 'Generadas {$a->rules} reglas y {$a->badges} insignias para {$a->type}.';
-$string['isglobalrule_help'] = 'Si está habilitado, esta regla se aplicará a todas las actividades del tipo seleccionado en el curso, en lugar de una sola actividad específica.';
+$string['forumpostcount'] = 'Publicaciones requeridas en el foro';
+$string['forumpostcount_help'] = 'Ingresa cuántas publicaciones debe hacer el participante en el foro seleccionado para otorgar la insignia.';
 $string['forumpostcounterror'] = 'Ingresa un número positivo de publicaciones requeridas.';
 $string['forumpostcount_all'] = 'Publicaciones necesarias (temas o respuestas)';
 $string['forumpostcount_all_help'] = 'Indica cuántas publicaciones en total (temas + respuestas) debe realizar el participante en el foro seleccionado para otorgar la insignia.';

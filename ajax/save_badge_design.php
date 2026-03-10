@@ -38,21 +38,33 @@ try {
     // 2. Crear la insignia
     $badge = new stdClass();
     $badge->name = $name;
-    $badge->description = $description;
+    $badge->description = $description ?: $name; // Use name as fallback description
     $badge->timecreated = time();
     $badge->timemodified = time();
     $badge->usercreated = $USER->id;
     $badge->usermodified = $USER->id;
-    $badge->issuername = fullname($USER); // Default issuer
+    $badge->issuername = fullname($USER); // Badge author/issuer
     $badge->issuerurl = $CFG->wwwroot;
     $badge->issuercontact = $USER->email;
     $badge->expiredate = null;
     $badge->expireperiod = null;
     $badge->type = BADGE_TYPE_COURSE;
     $badge->courseid = $courseid;
+    $badge->version = '1.0';
+    $language = current_language();
+    $languages = get_string_manager()->get_list_of_languages();
+    if (!isset($languages[$language])) {
+        $language = get_parent_language($language) ?: 'en';
+    }
+    $badge->language = $language;
+
+    $badge->imageauthorname = get_string('pluginname', 'local_automatic_badges');
+    $badge->imageauthoremail = $USER->email;
+    $urlparts = parse_url($CFG->wwwroot);
+    $badge->imageauthorurl = $urlparts['scheme'] . '://' . $urlparts['host'];
     $badge->messagesubject = get_string('messagesubject', 'badges');
     $badge->message = get_string('messagebody', 'badges');
-    $badge->imagefile = 'f1.png'; // Specify image file name to make it look active initially
+    $badge->imagefile = 'f1.png';
     $badge->attachment = 1;
     $badge->notification = 0;
     $badge->status = BADGE_STATUS_INACTIVE;

@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 // local/automatic_badges/pages/add_rule.php
 
 // === Dependencias principales ===

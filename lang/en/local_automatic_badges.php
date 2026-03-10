@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 defined('MOODLE_INTERNAL') || die();
 
 // Plugin name.
@@ -30,6 +30,7 @@ $string['criteriontype'] = 'Criterion type';
 $string['criteriontype_help'] = 'Choose the condition type that must be met before the badge is awarded.';
 $string['criterion_grade'] = 'By minimum grade';
 $string['criterion_forum'] = 'By forum participation';
+$string['criterion_forum_grade'] = 'By forum grade';
 $string['criterion_submission'] = 'By activity submission';
 $string['criterion_workshop'] = 'By workshop participation';
 $string['criterion_section'] = 'By section completion (cumulative)';
@@ -239,6 +240,9 @@ $string['deleterule'] = 'Delete rule';
 $string['deleterule_confirm'] = 'Are you sure you want to delete this rule? This action cannot be undone.';
 $string['ruledeleted'] = 'Rule deleted successfully.';
 $string['ruleduplicated'] = 'Rule duplicated successfully.';
+
+// Template applied message.
+$string['template_applied'] = 'Template applied: {$a}. Customize the values as needed.';
 $string['selectactivities'] = 'Select activities';
 $string['selecttypefirst'] = 'First select an activity type';
 $string['error_noactivitiesselected'] = 'No activities were selected for badge generation.';

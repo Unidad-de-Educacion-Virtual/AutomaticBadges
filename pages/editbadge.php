@@ -43,8 +43,10 @@ if ($data = $mform->get_data()) {
     $badge->description = $data->description_editor['text'] ?? '';
     if (property_exists($badge, 'issuername'))   { $badge->issuername = $data->issuername; }
     if (property_exists($badge, 'issuercontact')){ $badge->issuercontact = $data->issuercontact; }
-    $badge->expirydate  = !empty($data->expirydate) ? $data->expirydate : null;
     if (property_exists($badge, 'message'))      { $badge->message = $data->message; }
+    
+    // expirydate doesn't explicitly exist in modern mdl_badge (it's expiredate/expireperiod).
+    // Skipping assignment to avoid DML write exceptions.
 
     $badge->save();
 
@@ -62,7 +64,6 @@ $init->name      = $badge->name;
 $init->description_editor = ['text' => $badge->description, 'format' => FORMAT_HTML];
 $init->issuername    = $badge->issuername ?? '';
 $init->issuercontact = $badge->issuercontact ?? '';
-$init->expirydate    = !empty($badge->expirydate) ? (int)$badge->expirydate : 0;
 $init->message       = $badge->message ?? '';
 $init->statusenable  = (int)$badge->is_active();
 

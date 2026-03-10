@@ -85,6 +85,25 @@ if (!empty($ruleaction)) {
     redirect(new moodle_url($PAGE->url, ['tab' => 'rules']), $message, 0, $type);
 }
 
+// === Procesar acciones de insignias ===
+$badgeaction = optional_param('badgeaction', '', PARAM_ALPHA);
+if (!empty($badgeaction) && $badgeaction === 'delete') {
+    require_sesskey();
+    $targetbadgeid = optional_param('badge', 0, PARAM_INT);
+    if ($targetbadgeid > 0) {
+        $badge = new \core_badges\badge($targetbadgeid);
+        // Ensure the badge belongs to the current course
+        if ($badge->courseid == $courseid) {
+            $badgename = format_string($badge->name);
+            $badge->delete();
+            // User requested to NOT delete associated rules
+            
+            $message = get_string('deleted') . ': ' . $badgename;
+            redirect(new moodle_url($PAGE->url, ['tab' => 'badges']), $message, 0, \core\output\notification::NOTIFY_SUCCESS);
+        }
+    }
+}
+
 // === Procesar acciones de Test Logic ===
 $testaction = optional_param('testaction', '', PARAM_ALPHA);
 if (!empty($testaction) && $currenttab === 'testlogic' && confirm_sesskey()) {
@@ -100,7 +119,29 @@ if (!empty($testaction) && $currenttab === 'testlogic' && confirm_sesskey()) {
                 if (\local_automatic_badges\rule_engine::check_rule($rule, $u->id)) {
                     $badge = new \core_badges\badge($rule->badgeid);
                     if (!$badge->is_issued($u->id)) {
+                        // Capture any debugging output (e.g. "Error calling message processor email")
+                        // so it doesn't break the redirect with "Error de salida".
+                        ob_start();
                         $badge->issue($u->id);
+                        ob_end_clean();
+
+                        // Write to plugin history log (same structure as cron task).
+                        $log = (object) [
+                            'userid'        => (int)$u->id,
+                            'badgeid'       => (int)$rule->badgeid,
+                            'ruleid'        => (int)$rule->id,
+                            'courseid'      => (int)$rule->courseid,
+                            'timeissued'    => time(),
+                            'bonus_applied' => !empty($rule->enable_bonus) ? 1 : 0,
+                            'bonus_value'   => !empty($rule->enable_bonus) ? (float)($rule->bonus_points ?? 0) : null,
+                        ];
+                        $DB->insert_record('local_automatic_badges_log', $log);
+
+                        // Apply grade bonus if enabled.
+                        if (!empty($rule->enable_bonus) && (float)($rule->bonus_points ?? 0) > 0) {
+                            \local_automatic_badges\bonus_manager::apply_bonus((int)$rule->courseid, (int)$u->id, $rule);
+                        }
+
                         $awarded++;
                     }
                 }
@@ -115,7 +156,27 @@ if (!empty($testaction) && $currenttab === 'testlogic' && confirm_sesskey()) {
         if ($rule && $DB->record_exists('badge', ['id' => $rule->badgeid]) && \local_automatic_badges\rule_engine::check_rule($rule, $targetuserid)) {
             $badge = new \core_badges\badge($rule->badgeid);
             if (!$badge->is_issued($targetuserid)) {
+                ob_start();
                 $badge->issue($targetuserid);
+                ob_end_clean();
+
+                // Write to plugin history log.
+                $log = (object) [
+                    'userid'        => (int)$targetuserid,
+                    'badgeid'       => (int)$rule->badgeid,
+                    'ruleid'        => (int)$rule->id,
+                    'courseid'      => (int)$rule->courseid,
+                    'timeissued'    => time(),
+                    'bonus_applied' => !empty($rule->enable_bonus) ? 1 : 0,
+                    'bonus_value'   => !empty($rule->enable_bonus) ? (float)($rule->bonus_points ?? 0) : null,
+                ];
+                $DB->insert_record('local_automatic_badges_log', $log);
+
+                // Apply grade bonus if enabled.
+                if (!empty($rule->enable_bonus) && (float)($rule->bonus_points ?? 0) > 0) {
+                    \local_automatic_badges\bonus_manager::apply_bonus((int)$rule->courseid, (int)$targetuserid, $rule);
+                }
+
                 redirect(new moodle_url($PAGE->url, ['tab' => 'testlogic', 'userid' => $targetuserid]), 'Insignia otorgada manualmente.', 0, \core\output\notification::NOTIFY_SUCCESS);
             }
         }
@@ -334,7 +395,7 @@ function render_badges_tab($courseid, $OUTPUT, $DB, $page, $perpage, $sort, $dir
     global $CFG;
     
     // Link to create new badge in Moodle
-    $createbadgeurl = new moodle_url('/badges/newbadge.php', ['type' => BADGE_TYPE_COURSE, 'id' => $courseid]);
+    $createbadgeurl = new moodle_url('/badges/edit.php', ['action' => 'new', 'courseid' => $courseid]);
     echo html_writer::div(
         $OUTPUT->single_button($createbadgeurl, get_string('newbadge', 'badges'), 'get'),
         'local-automatic-badges-actions mb-3'
@@ -392,18 +453,40 @@ function render_badges_tab($courseid, $OUTPUT, $DB, $page, $perpage, $sort, $dir
         ]);
 
         // Actions
-        $editurl = new moodle_url('/local/automatic_badges/editbadge.php', ['id' => $badge->id, 'courseid' => $courseid]);
-        $moodleediturl = new moodle_url('/badges/edit.php', ['id' => $badge->id, 'action' => 'badge']);
-        
+        $moodleediturl    = new moodle_url('/badges/edit.php', ['id' => $badge->id, 'action' => 'badge']);
+        $recipientsurl    = new moodle_url('/badges/recipients.php', ['id' => $badge->id]);
+
         $actions = html_writer::start_div('btn-group', ['role' => 'group']);
-        $actions .= html_writer::link($editurl,
-            html_writer::tag('i', '', ['class' => 'fa fa-edit']),
-            ['class' => 'btn btn-sm btn-outline-primary', 'title' => get_string('edit')]
-        );
+
+        // Edit: opens the full native Moodle badge editor (name, image, criteria, expiry, etc.)
         $actions .= html_writer::link($moodleediturl,
-            html_writer::tag('i', '', ['class' => 'fa fa-cog']),
-            ['class' => 'btn btn-sm btn-outline-secondary', 'title' => get_string('editsettings')]
+            html_writer::tag('i', '', ['class' => 'fa fa-edit']) . ' ' . get_string('edit'),
+            ['class' => 'btn btn-sm btn-outline-primary', 'title' => get_string('editsettings')]
         );
+
+        // Recipients: shows who has already been awarded this badge
+        $actions .= html_writer::link($recipientsurl,
+            html_writer::tag('i', '', ['class' => 'fa fa-users']) . ' ' . get_string('viewrecipients', 'local_automatic_badges'),
+            ['class' => 'btn btn-sm btn-outline-info', 'title' => get_string('viewrecipients', 'local_automatic_badges')]
+        );
+
+        // Delete: native badge deletion with confirmation (only if inactive)
+        if (!$badge->is_active()) {
+            global $CFG; // Use CFG since PAGE might not be fully passed
+            $deleteurl = new moodle_url('/local/automatic_badges/course_settings.php', [
+                'id' => $courseid, 
+                'badgeaction' => 'delete', 
+                'badge' => $badge->id, 
+                'sesskey' => sesskey(), 
+                'tab' => 'badges'
+            ]);
+            $actions .= html_writer::link($deleteurl,
+                html_writer::tag('i', '', ['class' => 'fa fa-trash']),
+                ['class' => 'btn btn-sm btn-outline-danger', 'title' => get_string('delete'),
+                 'onclick' => "return confirm('¿Está seguro de que desea eliminar esta insignia? NOTA: Las reglas asociadas no se eliminarán.');"]
+            );
+        }
+
         $actions .= html_writer::end_div();
 
         echo html_writer::start_tag('tr');

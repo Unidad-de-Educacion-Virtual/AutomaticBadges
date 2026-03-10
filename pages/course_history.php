@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 // /local/automatic_badges/pages/course_history.php
 
 // === Dependencias principales ===

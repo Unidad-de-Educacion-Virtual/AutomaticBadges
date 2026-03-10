@@ -81,7 +81,7 @@ class helper {
      * Get eligible activities for a specific criterion type.
      *
      * @param int $courseid
-     * @param string $criterion 'grade', 'forum', or 'submission'
+     * @param string $criterion 'grade', 'forum', 'forum_grade', or 'submission'
      * @return array<int,string> Array of cmid => activity name
      */
     public static function get_eligible_activities(int $courseid, string $criterion = ''): array {
@@ -105,17 +105,26 @@ class helper {
      * Check if an activity is eligible for a specific criterion.
      *
      * @param \cm_info $cm
-     * @param string $criterion 'grade', 'forum', or 'submission'
+     * @param string $criterion 'grade', 'forum', 'forum_grade', or 'submission'
      * @return bool
      */
     public static function is_activity_eligible(\cm_info $cm, string $criterion = ''): bool {
         switch ($criterion) {
             case 'forum':
+                // Posts/participation criterion: only forums.
+                return $cm->modname === 'forum';
+            case 'forum_grade':
+                // Grade-in-forum criterion: only forums (that support grading).
                 return $cm->modname === 'forum';
             case 'submission':
                 return in_array($cm->modname, ['assign', 'workshop'], true);
             case 'grade':
-                return plugin_supports('mod', $cm->modname, FEATURE_GRADE_HAS_GRADE);
+                // Minimum-grade criterion: any gradable activity EXCEPT forums
+                // (forums are handled by the dedicated 'forum_grade' criterion).
+                if ($cm->modname === 'forum') {
+                    return false;
+                }
+                return (bool)plugin_supports('mod', $cm->modname, FEATURE_GRADE_HAS_GRADE);
             default:
                 // If no criterion specified, check if supports grades or completion
                 $supportsgrades = plugin_supports('mod', $cm->modname, FEATURE_GRADE_HAS_GRADE);

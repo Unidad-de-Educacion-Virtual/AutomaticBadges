@@ -6,7 +6,7 @@ require_once(__DIR__.'/../../../config.php');
 require_login();
 
 $courseid = required_param('courseid', PARAM_INT);
-$criterion = required_param('criterion_type', PARAM_ALPHA);
+$criterion = required_param('criterion_type', PARAM_ALPHANUMEXT);
 $modname = optional_param('modname', '', PARAM_ALPHA);
 $format = optional_param('format', 'html', PARAM_ALPHA);
 

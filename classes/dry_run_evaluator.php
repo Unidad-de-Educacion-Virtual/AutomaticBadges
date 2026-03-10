@@ -74,6 +74,9 @@ class dry_run_evaluator {
             case 'grade':
                 $eligibleusers = self::evaluate_grade($courseid, $cm, $userids, $users, $config);
                 break;
+            case 'forum_grade':
+                $eligibleusers = self::evaluate_forum_grade($courseid, $cm, $userids, $users, $config);
+                break;
             case 'forum':
                 $eligibleusers = self::evaluate_forum($courseid, $cm, $userids, $users, $config);
                 break;
@@ -146,6 +149,18 @@ class dry_run_evaluator {
         }
 
         return $eligible;
+    }
+
+    /**
+     * Evaluate forum-grade criterion (grade given to a forum activity).
+     * Reuses the same logic as grade but restricted to forum modules.
+     */
+    private static function evaluate_forum_grade(int $courseid, \cm_info $cm, array $userids, array $users, object $config): array {
+        if ($cm->modname !== 'forum') {
+            return [];
+        }
+        // Delegate to the standard grade evaluator.
+        return self::evaluate_grade($courseid, $cm, $userids, $users, $config);
     }
 
     /**
@@ -260,6 +275,7 @@ class dry_run_evaluator {
         require_once($CFG->libdir . '/gradelib.php');
 
         switch ($criterion) {
+            case 'forum_grade':
             case 'grade':
                 $grades = grade_get_grades($courseid, 'mod', $cm->modname, $cm->instance, $userid);
                 if (!empty($grades->items[0]->grades[$userid])) {

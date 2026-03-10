@@ -179,7 +179,7 @@ class local_automatic_badges_add_global_rule_form extends moodleform {
         }
 
         if (empty($badgeoptions)) {
-            $createbadgeurl = new moodle_url('/badges/newbadge.php', ['type' => BADGE_TYPE_COURSE, 'id' => $courseid]);
+            $createbadgeurl = new moodle_url('/badges/edit.php', ['action' => 'new', 'courseid' => $courseid]);
             $alerthtml = '
             <div class="alert alert-warning d-flex align-items-start" role="alert" style="margin: 1rem 0; padding: 1rem 1.25rem; border-left: 4px solid #ffc107;">
                 <i class="fa fa-exclamation-triangle fa-2x mr-3" style="color: #856404;"></i>

@@ -58,6 +58,15 @@ class award_badges_task extends \core\task\scheduled_task {
                     ];
                     $DB->insert_record('local_automatic_badges_log', $log);
 
+                    // Apply grade bonus if enabled for this rule.
+                    if (!empty($rule->enable_bonus) && (float)($rule->bonus_points ?? 0) > 0) {
+                        \local_automatic_badges\bonus_manager::apply_bonus(
+                            (int)$courseid,
+                            (int)$student->id,
+                            $rule
+                        );
+                    }
+
                     debugging('Cron: Awarded badge ' . $rule->badgeid . ' to user ' . $student->id . ' (course ' . $courseid . ')', DEBUG_DEVELOPER);
                 }
             }

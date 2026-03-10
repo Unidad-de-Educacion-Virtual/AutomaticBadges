@@ -16,7 +16,7 @@ New-Item -ItemType Directory -Path $TempDir -Force | Out-Null
 
 # 2. Carpetas y archivos a excluir
 $ExcludeDirs  = @(".git", ".vscode", ".idea", "node_modules", "tests")
-$ExcludeFiles = @("*.zip", "build.ps1", ".gitignore", "debug.log")
+$ExcludeFiles = @("*.zip", "build.ps1", ".gitignore", "debug.log", "debug_post.txt", "syntax_error.txt", "temp.html", "test_logic.php", "debug_rules.php", "*.md")
 
 Write-Host "Copiando archivos a carpeta temporal..."
 
@@ -72,17 +72,37 @@ if (-not (Test-Path $VersionFile)) {
 }
 Write-Host "OK: version.php encontrado." -ForegroundColor Green
 
-# 4. Crear el archivo ZIP (directamente la carpeta del plugin)
+# 4. Crear el archivo ZIP usando Python (forward slashes, compatible con Moodle)
 $ZipPath = Join-Path -Path $SourceDir -ChildPath $ZipName
 if (Test-Path $ZipPath) {
     Remove-Item -Force $ZipPath
 }
 
-Write-Host "Comprimiendo carpeta..."
-Compress-Archive -Path $TempDir -DestinationPath $ZipPath -Force
+Write-Host "Comprimiendo carpeta con Python..."
+
+$PythonScript = @"
+import zipfile, os
+plugin_name = '$PluginName'
+source_dir  = r'$TempParent'
+output_zip  = r'$ZipPath'
+added = 0
+with zipfile.ZipFile(output_zip, 'w', compression=zipfile.ZIP_DEFLATED) as zf:
+    plugin_dir = os.path.join(source_dir, plugin_name)
+    for root, dirs, files in os.walk(plugin_dir):
+        for fname in files:
+            full_path = os.path.join(root, fname)
+            rel_path  = os.path.relpath(full_path, source_dir)
+            zip_entry = rel_path.replace(os.sep, '/')
+            zf.write(full_path, zip_entry)
+            added += 1
+print(f'Archivos empaquetados: {added}')
+"@
+
+python -c $PythonScript
 
 # 5. Limpiar temporal
 Remove-Item -Recurse -Force $TempParent
+
 
 Write-Host "======================================"
 Write-Host "¡Completado!"

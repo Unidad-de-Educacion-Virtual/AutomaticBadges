@@ -35,6 +35,9 @@ class rule_engine {
             case 'grade':
                 return self::check_grade_rule($rule, $userid);
 
+            case 'forum_grade':
+                return self::check_forum_grade_rule($rule, $userid);
+
             case 'forum':
                 return self::check_forum_rule($rule, $userid);
 
@@ -78,6 +81,8 @@ class rule_engine {
         // Evaluar la regla contra todas las actividades
         switch ($criterion) {
             case 'grade':
+                return self::check_global_grade_rule($rule, $userid, $activities);
+            case 'forum_grade':
                 return self::check_global_grade_rule($rule, $userid, $activities);
             case 'forum':
                 return self::check_global_forum_rule($rule, $userid, $activities);
@@ -162,6 +167,38 @@ class rule_engine {
             return false;
         }
         
+        $operator = $rule->grade_operator ?? '>=';
+        return self::compare_grade($currentgrade, $operator, (float)$rule->grade_min);
+    }
+
+    /**
+     * Evalúa reglas basadas en la calificación del foro.
+     * Similar a check_grade_rule pero se aplica a actividades de tipo foro.
+     *
+     * @param \stdClass $rule
+     * @param int $userid
+     * @return bool
+     */
+    private static function check_forum_grade_rule(\stdClass $rule, int $userid): bool {
+        if (empty($rule->activityid)) {
+            return false;
+        }
+
+        if (!isset($rule->grade_min)) {
+            return false;
+        }
+
+        // Verify the linked activity is indeed a forum
+        $cm = get_coursemodule_from_id(null, (int)$rule->activityid, (int)$rule->courseid, false, IGNORE_MISSING);
+        if (!$cm || $cm->modname !== 'forum') {
+            return false;
+        }
+
+        $currentgrade = self::get_grade_for_cmid((int)$rule->courseid, $userid, (int)$rule->activityid);
+        if ($currentgrade === null) {
+            return false;
+        }
+
         $operator = $rule->grade_operator ?? '>=';
         return self::compare_grade($currentgrade, $operator, (float)$rule->grade_min);
     }

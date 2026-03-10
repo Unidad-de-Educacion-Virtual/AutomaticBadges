@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 // local/automatic_badges/index.php
 
 // === Dependencias y capacidades ===
