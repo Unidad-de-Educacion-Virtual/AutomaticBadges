@@ -85,6 +85,7 @@ class local_automatic_badges_add_rule_form extends moodleform {
             'forum'       => get_string('criterion_forum', 'local_automatic_badges'),
             'submission'  => get_string('criterion_submission', 'local_automatic_badges'),
             'section'     => get_string('criterion_section', 'local_automatic_badges'),
+            'grade_item'  => get_string('criterion_grade_item', 'local_automatic_badges'),
         ];
         $criteriondefault = $this->_customdata['criterion_type'] ?? 'grade';
         $criterion = optional_param('criterion_type', $criteriondefault, PARAM_ALPHANUMEXT);
@@ -272,6 +273,7 @@ class local_automatic_badges_add_rule_form extends moodleform {
             'forum'       => \local_automatic_badges\helper::get_eligible_activities($courseid, 'forum'),
             'submission'  => \local_automatic_badges\helper::get_eligible_activities($courseid, 'submission'),
             'section'     => \local_automatic_badges\helper::get_course_sections($courseid),
+            'grade_item'  => \local_automatic_badges\helper::get_grade_items($courseid),
         ];
         $this->eligibleactivities = $criteriaactivities[$criterion] ?? [];
          // Hidden input that actually gets submitted.
@@ -317,6 +319,12 @@ class local_automatic_badges_add_rule_form extends moodleform {
         ';
 
         $mform->addElement('static', 'activity_picker_dummy', get_string('activitylinked', 'local_automatic_badges'), $widgethtml);
+
+        $gradeiteminfoid = 'grade_item_info_box';
+        $mform->addElement('html', '<div id="' . $gradeiteminfoid . '" class="alert alert-info" style="display:none; margin-top:8px; border-left:4px solid #0f6cbf;">
+            <i class="fa fa-info-circle"></i> <strong>' . get_string('criterion_grade_item_info_title', 'local_automatic_badges') . '</strong><br>
+            ' . get_string('criterion_grade_item_info', 'local_automatic_badges') . '
+        </div>');
 
         // SECTION 3: Insignia a otorgar.
 
@@ -620,7 +628,7 @@ require(['jquery'], function($) {
         // Moodle's hideIf doesn't support OR, so we use JS.
         function updateGradeFieldsVisibility() {
             var criterion = $('#id_criterion_type').val();
-            var isGradeCriterion = (criterion === 'grade' || criterion === 'forum_grade');
+            var isGradeCriterion = (criterion === 'grade' || criterion === 'forum_grade' || criterion === 'grade_item');
             var isRange = ($('#id_grade_operator').val() === 'range');
             var gradeFields = [
                 $('#id_grade_operator').closest('.form-group, .fitem'),
@@ -678,11 +686,12 @@ require(['jquery'], function($) {
             parts.push('<div class="mt-2">');
             parts.push('<i class="fa fa-filter text-muted"></i> <strong>Criterio:</strong> ' + criterionLabel);
 
+            var linkedLabel = (criterion === 'grade_item') ? 'Ítem de calificación' : 'Actividad';
             if (activityVal && activityVal !== '0' && selectedName) {
-                parts.push('<br><i class="fa fa-link text-muted"></i> <strong>Actividad:</strong> ' +
+                parts.push('<br><i class="fa fa-link text-muted"></i> <strong>' + linkedLabel + ':</strong> ' +
                     $('<div>').text(selectedName).html());
             } else {
-                parts.push('<br><i class="fa fa-link text-muted"></i> <strong>Actividad:</strong> ' +
+                parts.push('<br><i class="fa fa-link text-muted"></i> <strong>' + linkedLabel + ':</strong> ' +
                     '<em class="text-danger">Sin seleccionar</em>');
             }
             parts.push('</div>');
@@ -711,6 +720,18 @@ require(['jquery'], function($) {
                         '%</strong> y <strong class="text-primary">Sin límite superior</strong>';
                 } else {
                     conditionHtml = 'Nota en foro ' + op + ' <strong class="text-primary">' + min + '%</strong>';
+                }
+            } else if (criterion === 'grade_item') {
+                var op  = gradeOperatorRaw || '>=';
+                var min = gradeMin || '0';
+                if (op === 'range' && gradeMax) {
+                    conditionHtml = 'Calificación del ítem entre <strong class="text-primary">' + min +
+                        '%</strong> y <strong class="text-primary">' + gradeMax + '%</strong>';
+                } else if (op === 'range') {
+                    conditionHtml = 'Calificación del ítem entre <strong class="text-primary">' + min +
+                        '%</strong> y <strong class="text-primary">Sin límite superior</strong>';
+                } else {
+                    conditionHtml = 'Calificación del ítem ' + op + ' <strong class="text-primary">' + min + '%</strong>';
                 }
             } else if (criterion === 'forum') {
                 var typeLabel = countType === 'replies' ? 'respuesta(s)' :
@@ -784,6 +805,7 @@ require(['jquery'], function($) {
             updateGradeFieldsVisibility();
             updateForumCountLabel();
             buildPreviewText();
+            updateGradeItemInfoBox();
         });
 
         $(document).on('change', '#id_grade_operator', function() {
@@ -808,6 +830,17 @@ require(['jquery'], function($) {
         updateGradeFieldsVisibility();
         updateForumCountLabel();
         buildPreviewText();
+
+        // Show/hide grade_item info box.
+        function updateGradeItemInfoBox() {
+            var criterion = $('#id_criterion_type').val();
+            if (criterion === 'grade_item') {
+                $('#grade_item_info_box').show();
+            } else {
+                $('#grade_item_info_box').hide();
+            }
+        }
+        updateGradeItemInfoBox();
     });
 });
 JS
@@ -825,7 +858,13 @@ JS
         $errors = parent::validation($data, $files);
         $courseid = isset($data['courseid']) ? (int)$data['courseid'] : 0;
         $criterion = $data['criterion_type'] ?? 'grade';
-        $this->eligibleactivities = \local_automatic_badges\helper::get_eligible_activities($courseid, $criterion);
+        if ($criterion === 'grade_item') {
+            $this->eligibleactivities = \local_automatic_badges\helper::get_grade_items($courseid);
+        } else if ($criterion === 'section') {
+            $this->eligibleactivities = \local_automatic_badges\helper::get_course_sections($courseid);
+        } else {
+            $this->eligibleactivities = \local_automatic_badges\helper::get_eligible_activities($courseid, $criterion);
+        }
         $activityid = isset($data['activityid']) ? (int)$data['activityid'] : 0;
 
         if (empty($activityid)) {
@@ -843,7 +882,7 @@ JS
             }
         }
 
-        if ($criterion === 'grade' || $criterion === 'forum_grade') {
+        if ($criterion === 'grade' || $criterion === 'forum_grade' || $criterion === 'grade_item') {
             $grademin = isset($data['grade_min']) ? (float)$data['grade_min'] : 0.0;
             if ($grademin < 0 || $grademin > 100) {
                 $errors['grade_min'] = get_string('grademin_invalid', 'local_automatic_badges');
