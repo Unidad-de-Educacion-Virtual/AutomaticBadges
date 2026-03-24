@@ -1,0 +1,48 @@
+name: Release
+
+# Triggers when a version tag (e.g. v0.6.0) is pushed to main.
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # needed to create a GitHub Release
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+
+      - name: Build plugin ZIP
+        run: |
+          # The checkout is already the clean plugin code (main branch).
+          # We zip it with the folder name "automatic_badges/" as Moodle requires.
+          cd "$GITHUB_WORKSPACE/.."
+          zip -r automatic_badges.zip automatic_badges/ \
+            --exclude "automatic_badges/.git*"          \
+            --exclude "automatic_badges/.github*"       \
+            --exclude "automatic_badges/.gitignore"
+          mv automatic_badges.zip "$GITHUB_WORKSPACE/automatic_badges.zip"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "v${{ steps.version.outputs.VERSION }} — Automatic Badges"
+          files: automatic_badges.zip
+          generate_release_notes: true
+          body: |
+            ## Instalación
+
+            1. Descarga `automatic_badges.zip`
+            2. En Moodle: **Administración del sitio → Plugins → Instalar plugins**
+            3. Sube el ZIP y sigue el asistente
+
+            ---
+            _Generado automáticamente desde `main` en el tag `${{ steps.version.outputs.VERSION }}`_
