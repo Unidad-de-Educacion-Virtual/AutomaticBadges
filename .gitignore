@@ -1,0 +1,19 @@
+# Development & build artifacts — kept only in development branches
+docs/
+debug.log
+debug_rules.php
+test_logic.php
+build_zip.php
+build.ps1
+automatic_badges_release.zip
+salida.txt
+extract_comments.txt
+extract_comments.php
+composer.json
+composer.lock
+
+# IDE / OS
+.vscode/
+.idea/
+*.DS_Store
+Thumbs.db

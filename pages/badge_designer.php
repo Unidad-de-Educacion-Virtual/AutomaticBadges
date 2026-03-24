@@ -255,6 +255,22 @@ echo '<style>
             </div>
         </div>
 
+        <!-- Imagen Personalizada -->
+        <div class="badge-section">
+            <div class="badge-section-header">
+                <span><i class="fa fa-image mr-1"></i> Imagen Personalizada</span>
+                <i class="fa fa-chevron-down"></i>
+            </div>
+            <div class="badge-section-body">
+                <p class="small text-muted mb-2">Sube tu propia imagen (PNG, JPG, SVG) para añadirla al lienzo.</p>
+                <label class="btn btn-outline-secondary btn-block" style="cursor:pointer;">
+                    <i class="fa fa-upload mr-1"></i> Seleccionar imagen...
+                    <input type="file" id="badge_img_upload" accept="image/*" style="display:none;">
+                </label>
+                <div id="badge_img_feedback" class="small text-muted mt-1" style="display:none;"></div>
+            </div>
+        </div>
+
         <!-- Fuente del Texto -->
         <div class="badge-section">
             <div class="badge-section-header">
@@ -903,6 +919,42 @@ $(function() {
     $("#badge_color_deco").on("input", function() {
         reColorDecorations();
         canvas.renderAll();
+    });
+
+    // Image upload.
+    let imageCount = 0;
+    $('#badge_img_upload').on('change', function() {
+        const file = this.files[0];
+        if (!file) return;
+        if (!file.type.match(/^image\//)) {
+            alert('Solo se permiten archivos de imagen (PNG, JPG, GIF, SVG, etc.).');
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            fabric.Image.fromURL(e.target.result, function(img) {
+                const maxDim = 160;
+                const scale = Math.min(maxDim / img.width, maxDim / img.height, 1);
+                img.scale(scale);
+                imageCount++;
+                img.set({
+                    left: centerX,
+                    top: centerY,
+                    originX: 'center',
+                    originY: 'center',
+                    selectable: true,
+                    name: 'Imagen ' + imageCount
+                });
+                canvas.add(img);
+                canvas.setActiveObject(img);
+                canvas.renderAll();
+                updateLayersPanel();
+                $('#badge_img_feedback').text('Imagen "' + file.name + '" añadida al lienzo.').show();
+                setTimeout(function() { $('#badge_img_feedback').hide(); }, 3000);
+            });
+        };
+        reader.readAsDataURL(file);
+        this.value = '';
     });
 
     // SAVE.

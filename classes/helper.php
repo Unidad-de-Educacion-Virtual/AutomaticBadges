@@ -183,6 +183,44 @@ class helper {
     }
 
     /**
+     * Get all grade items in a course for grade-item-based criteria.
+     *
+     * Returns grade items of all types including manual and category/calculated totals,
+     * which are not tied to a single course module activity.
+     *
+     * @param int $courseid Course ID.
+     * @return array<int,string> Array of grade_item_id => formatted label.
+     */
+    public static function get_grade_items(int $courseid): array {
+        global $DB;
+
+        $sql = "SELECT gi.id, gi.itemname, gi.itemtype, gi.itemmodule, gc.fullname AS catname
+                  FROM {grade_item} gi
+             LEFT JOIN {grade_category} gc ON gc.id = gi.iteminstance AND gi.itemtype = 'category'
+                 WHERE gi.courseid = :courseid
+                   AND gi.itemtype != 'course'
+              ORDER BY gi.sortorder ASC, gi.itemname ASC";
+
+        $records = $DB->get_records_sql($sql, ['courseid' => $courseid]);
+        $items = [];
+
+        foreach ($records as $record) {
+            if ($record->itemtype === 'mod') {
+                $label = '[' . ucfirst($record->itemmodule ?? '') . '] ' . ($record->itemname ?? $record->itemmodule);
+            } else if ($record->itemtype === 'manual') {
+                $label = '[Manual] ' . ($record->itemname ?? 'Item ' . $record->id);
+            } else if ($record->itemtype === 'category') {
+                $label = '[Categoría] ' . ($record->catname ?? 'Categoría ' . $record->id);
+            } else {
+                $label = '[' . $record->itemtype . '] ' . ($record->itemname ?? 'Item ' . $record->id);
+            }
+            $items[(int)$record->id] = $label;
+        }
+
+        return $items;
+    }
+
+    /**
      * Get all gradable activities in a specific course section.
      *
      * @param int $courseid Course ID.

@@ -58,6 +58,9 @@ class rule_engine {
             case 'forum_grade':
                 return self::check_forum_grade_rule($rule, $userid);
 
+            case 'grade_item':
+                return self::check_grade_item_rule($rule, $userid);
+
             case 'forum':
                 return self::check_forum_rule($rule, $userid);
 
@@ -187,6 +190,45 @@ class rule_engine {
 
         $operator = $rule->grade_operator ?? '>=';
         return self::compare_grade($currentgrade, $operator, (float)$rule->grade_min);
+    }
+
+    /**
+     * Evaluates rules based on a specific grade item ID (not tied to a course module).
+     * This supports calculated/aggregated grade items such as category totals and manual grades.
+     *
+     * @param \stdClass $rule
+     * @param int $userid
+     * @return bool
+     */
+    private static function check_grade_item_rule(\stdClass $rule, int $userid): bool {
+        global $DB;
+
+        if (empty($rule->activityid) || !isset($rule->grade_min)) {
+            return false;
+        }
+
+        $gradeitemid = (int)$rule->activityid;
+        $courseid    = (int)$rule->courseid;
+
+        $gradeitem = $DB->get_record('grade_item', ['id' => $gradeitemid, 'courseid' => $courseid]);
+        if (!$gradeitem) {
+            return false;
+        }
+
+        $graderecord = $DB->get_record('grade_grades', ['itemid' => $gradeitemid, 'userid' => $userid]);
+        if (!$graderecord || $graderecord->finalgrade === null) {
+            return false;
+        }
+
+        $grademax = (float)($gradeitem->grademax ?? 100.0);
+        $grademin = (float)($gradeitem->grademin ?? 0.0);
+        $rawgrade = (float)$graderecord->finalgrade;
+
+        $range = $grademax - $grademin;
+        $percentage = ($range > 0) ? (($rawgrade - $grademin) / $range) * 100.0 : 0.0;
+
+        $operator = $rule->grade_operator ?? '>=';
+        return self::compare_grade($percentage, $operator, (float)$rule->grade_min);
     }
 
     /**
