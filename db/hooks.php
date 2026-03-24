@@ -15,20 +15,21 @@
 // along with local_automatic_badges.  If not, see <https://www.gnu.org/licenses/>.
 
 /**
- * Entry point.
+ * Hook callbacks for local_automatic_badges.
  *
  * @package    local_automatic_badges
- * @author     Daniela Alexandra Patiño Dávila
+ * @author     Daniela Alexandra PatiÃ±o DÃ¡vila
  * @author     Cristian Julian Lamus Lamus
- * @copyright  2026 Daniela Alexandra Patiño Dávila, Cristian Julian Lamus Lamus
+ * @copyright  2026 Daniela Alexandra PatiÃ±o DÃ¡vila, Cristian Julian Lamus Lamus
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-require(__DIR__ . '/../../config.php');
+defined('MOODLE_INTERNAL') || die();
 
-$id = required_param('id', PARAM_INT);
-$course = get_course($id);
-require_login($course);
-
-// Redirect to the actual page implementation.
-require(__DIR__ . '/pages/add_global_rule.php');
+$callbacks = [
+    [
+        'hook'     => core\hook\output\before_footer_html_generation::class,
+        'callback' => 'local_automatic_badges\hook_callbacks::before_footer',
+        'priority' => 0,
+    ],
+];

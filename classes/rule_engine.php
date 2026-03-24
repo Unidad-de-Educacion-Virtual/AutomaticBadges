@@ -1,20 +1,40 @@
 <?php
-// local/automatic_badges/classes/rule_engine.php
+// This file is part of local_automatic_badges - https://moodle.org/.
+//
+// local_automatic_badges is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// local_automatic_badges is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with local_automatic_badges.  If not, see <https://www.gnu.org/licenses/>.
+
+/**
+ * Automatic rule evaluation engine.
+ *
+ * @package    local_automatic_badges
+ * @author     Daniela Alexandra Patiño Dávila
+ * @author     Cristian Julian Lamus Lamus
+ * @copyright  2026 Daniela Alexandra Patiño Dávila, Cristian Julian Lamus Lamus
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 
 namespace local_automatic_badges;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
- * Encapsula la lógica de evaluación de reglas automáticas.
+ * Automatic rule evaluation engine.
  */
 class rule_engine {
-
     /**
-     * Determina si un usuario cumple una regla concreta.
+     * Determines if a user meets a specific rule.
      *
-     * @param \stdClass $rule  Registro de la tabla local_automatic_badges_rules.
-     * @param int       $userid Identificador del usuario a evaluar.
+     * @param \stdClass $rule  Rule record from local_automatic_badges_rules table.
+     * @param int       $userid User ID to evaluate.
      * @return bool
      */
     public static function check_rule(\stdClass $rule, int $userid): bool {
@@ -26,7 +46,7 @@ class rule_engine {
             return false;
         }
 
-        // Si es una regla global, evaluar contra todas las actividades del tipo
+        // If it is a global rule, evaluate against all activities of the type.
         if (!empty($rule->is_global_rule)) {
             return self::check_global_rule($rule, $userid);
         }
@@ -47,15 +67,13 @@ class rule_engine {
     }
 
     /**
-     * Evalúa reglas globales contra todas las actividades del tipo especificado.
+     * Evaluates global rules against all activities of the specified type.
      *
      * @param \stdClass $rule
      * @param int $userid
      * @return bool
      */
     private static function check_global_rule(\stdClass $rule, int $userid): bool {
-        global $DB;
-
         if (empty($rule->activity_type) || empty($rule->courseid)) {
             return false;
         }
@@ -64,7 +82,7 @@ class rule_engine {
         $activitytype = $rule->activity_type;
         $criterion = $rule->criterion_type;
 
-        // Obtener todas las actividades del tipo especificado en el curso
+        // Get all activities of the specified type in the course.
         $modinfo = get_fast_modinfo($courseid);
         $activities = [];
 
@@ -78,7 +96,7 @@ class rule_engine {
             return false;
         }
 
-        // Evaluar la regla contra todas las actividades
+        // Evaluate the rule against all activities.
         switch ($criterion) {
             case 'grade':
                 return self::check_global_grade_rule($rule, $userid, $activities);
@@ -92,7 +110,7 @@ class rule_engine {
     }
 
     /**
-     * Evalúa regla global de calificación contra múltiples actividades.
+     * Evaluates a global grade rule against multiple activities.
      *
      * @param \stdClass $rule
      * @param int $userid
@@ -108,7 +126,7 @@ class rule_engine {
         $operator = $rule->grade_operator ?? '>=';
         $courseid = (int)$rule->courseid;
 
-        // Verificar que al menos una actividad cumpla el criterio
+        // Verify that at least one activity meets the criterion.
         foreach ($cmids as $cmid) {
             $currentgrade = self::get_grade_for_cmid($courseid, $userid, $cmid);
             if ($currentgrade !== null && self::compare_grade($currentgrade, $operator, $grademin)) {
@@ -120,7 +138,7 @@ class rule_engine {
     }
 
     /**
-     * Evalúa regla global de foro contra múltiples actividades.
+     * Evaluates a global forum rule against multiple activities.
      *
      * @param \stdClass $rule
      * @param int $userid
@@ -136,7 +154,7 @@ class rule_engine {
         $courseid = (int)$rule->courseid;
         $counttype = $rule->forum_count_type ?? 'all';
 
-        // Contar posts totales en todos los foros del curso
+        // Contar posts totales en todos los foros del curso.
         $totalposits = 0;
         foreach ($cmids as $cmid) {
             $postcount = self::get_forum_reply_count($courseid, $cmid, $userid, $counttype);
@@ -147,7 +165,7 @@ class rule_engine {
     }
 
     /**
-     * Evalúa reglas basadas en calificación mínima.
+     * Evaluates rules based on minimum grade.
      *
      * @param \stdClass $rule
      * @param int $userid
@@ -166,13 +184,13 @@ class rule_engine {
         if ($currentgrade === null) {
             return false;
         }
-        
+
         $operator = $rule->grade_operator ?? '>=';
         return self::compare_grade($currentgrade, $operator, (float)$rule->grade_min);
     }
 
     /**
-     * Evalúa reglas basadas en la calificación del foro.
+     * Evaluates rules based on the forum grade.
      * Similar a check_grade_rule pero se aplica a actividades de tipo foro.
      *
      * @param \stdClass $rule
@@ -188,7 +206,7 @@ class rule_engine {
             return false;
         }
 
-        // Verify the linked activity is indeed a forum
+        // Verify the linked activity is indeed a forum.
         $cm = get_coursemodule_from_id(null, (int)$rule->activityid, (int)$rule->courseid, false, IGNORE_MISSING);
         if (!$cm || $cm->modname !== 'forum') {
             return false;
@@ -202,9 +220,9 @@ class rule_engine {
         $operator = $rule->grade_operator ?? '>=';
         return self::compare_grade($currentgrade, $operator, (float)$rule->grade_min);
     }
-    
+
     /**
-     * Compara una calificación usando el operador especificado.
+     * Compares a grade using the specified operator.
      *
      * @param float $grade Calificación del estudiante
      * @param string $operator Operador de comparación (>=, >, <=, <, ==)
@@ -222,14 +240,14 @@ class rule_engine {
             case '<':
                 return $grade < $threshold;
             case '==':
-                return abs($grade - $threshold) < 0.01; // Float comparison with tolerance
+                return abs($grade - $threshold) < 0.01; // Float comparison with tolerance.
             default:
-                return $grade >= $threshold; // Default to >= for backward compatibility
+                return $grade >= $threshold; // Default to >= for backward compatibility.
         }
     }
 
     /**
-     * Evalúa reglas por participación en foros.
+     * Evaluates rules based on forum participation.
      *
      * @param \stdClass $rule
      * @param int $userid
@@ -251,7 +269,7 @@ class rule_engine {
     }
 
     /**
-     * Obtiene la calificación de un usuario para un módulo específico.
+     * Gets the grade of a user for a specific module.
      *
      * @param int $courseid
      * @param int $userid
@@ -282,11 +300,11 @@ class rule_engine {
             return null;
         }
 
-        // Calcular porcentaje basado en grademin y grademax de la actividad
+        // Calcular porcentaje basado en grademin y grademax de la actividad.
         $grademax = isset($item->grademax) ? (float)$item->grademax : 100.0;
         $grademin = isset($item->grademin) ? (float)$item->grademin : 0.0;
         $rawgrade = (float)$usergrade->grade;
-        
+
         $range = $grademax - $grademin;
         if ($range > 0) {
             return (($rawgrade - $grademin) / $range) * 100.0;
@@ -296,7 +314,7 @@ class rule_engine {
     }
 
     /**
-     * Cuenta posts realizados por un usuario en un foro concreto.
+     * Counts posts made by a user in a specific forum.
      *
      * @param int $courseid
      * @param int $cmid
@@ -317,20 +335,20 @@ class rule_engine {
             'userid' => $userid,
         ];
 
-        // Construir condición según el tipo de conteo
+        // Construir condición según el tipo de conteo.
         $parentcondition = '';
         switch ($counttype) {
             case 'replies':
-                // Solo respuestas (parent != 0)
+                // Solo respuestas (parent != 0).
                 $parentcondition = 'AND p.parent <> 0';
                 break;
             case 'topics':
-                // Solo temas nuevos (parent = 0)
+                // Solo temas nuevos (parent = 0).
                 $parentcondition = 'AND p.parent = 0';
                 break;
             case 'all':
             default:
-                // Todos los posts (temas + respuestas)
+                // Todos los posts (temas + respuestas).
                 $parentcondition = '';
                 break;
         }

@@ -1,9 +1,40 @@
 <?php
+// This file is part of local_automatic_badges - https://moodle.org/.
+//
+// local_automatic_badges is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// local_automatic_badges is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with local_automatic_badges.  If not, see <https://www.gnu.org/licenses/>.
+
+/**
+ * Event observer for local_automatic_badges.
+ *
+ * @package    local_automatic_badges
+ * @author     Daniela Alexandra Patiño Dávila
+ * @author     Cristian Julian Lamus Lamus
+ * @copyright  2026 Daniela Alexandra Patiño Dávila, Cristian Julian Lamus Lamus
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
+
 namespace local_automatic_badges;
 
-defined('MOODLE_INTERNAL') || die();
-
+/**
+ * Observer class.
+ */
 class observer {
+    /**
+     * Handles grade updated event.
+     *
+     * @param \core\event\grade_updated $event
+     */
     public static function grade_updated(\core\event\grade_updated $event) {
         global $CFG, $DB;
 
@@ -16,11 +47,11 @@ class observer {
             return;
         }
 
-        // Obtener reglas activas para este curso que usen el criterio de calificación
+        // Get active rules for this course that use the grade criterion.
         $rules = $DB->get_records('local_automatic_badges_rules', [
             'courseid' => $courseid,
             'enabled' => 1,
-            'criterion_type' => 'grade'
+            'criterion_type' => 'grade',
         ]);
 
         if (empty($rules)) {
@@ -31,7 +62,7 @@ class observer {
         require_once($CFG->dirroot . '/badges/lib.php');
 
         foreach ($rules as $rule) {
-            // Evaluar regla usando el motor centralizado
+            // Evaluate rule using centralized engine.
             if (!rule_engine::check_rule($rule, $userid)) {
                 debugging('User ' . $userid . ' does not meet grade rule ' . $rule->id, DEBUG_DEVELOPER);
                 continue;
@@ -43,18 +74,18 @@ class observer {
                 continue;
             }
 
-            // Emitir insignia
+            // Issue badge.
             $badge->issue($userid);
 
-            // Registrar en log
+            // Register in log.
             $log = (object) [
-                'userid' => $userid,
-                'badgeid' => (int)$rule->badgeid,
-                'ruleid' => (int)$rule->id,
-                'courseid' => $courseid,
-                'timeissued' => time(),
+                'userid'        => $userid,
+                'badgeid'       => (int)$rule->badgeid,
+                'ruleid'        => (int)$rule->id,
+                'courseid'      => $courseid,
+                'timeissued'    => time(),
                 'bonus_applied' => !empty($rule->enable_bonus) ? 1 : 0,
-                'bonus_value' => !empty($rule->enable_bonus) ? (float)($rule->bonus_points ?? 0) : null,
+                'bonus_value'   => !empty($rule->enable_bonus) ? (float)($rule->bonus_points ?? 0) : null,
             ];
             $DB->insert_record('local_automatic_badges_log', $log);
 
@@ -63,7 +94,7 @@ class observer {
     }
 
     /**
-     * Evalúa reglas de foro cuando se crea un post.
+     * Evaluates forum rules when a post is created.
      *
      * @param \mod_forum\event\post_created $event
      */
@@ -79,11 +110,11 @@ class observer {
             return;
         }
 
-        // Obtener reglas de foro activas para este curso
+        // Get active forum rules for this course.
         $rules = $DB->get_records('local_automatic_badges_rules', [
             'courseid' => $courseid,
             'enabled' => 1,
-            'criterion_type' => 'forum'
+            'criterion_type' => 'forum',
         ]);
 
         if (empty($rules)) {
@@ -94,13 +125,13 @@ class observer {
         require_once($CFG->dirroot . '/badges/lib.php');
 
         foreach ($rules as $rule) {
-            // Verificar si es dry run
+            // Check if dry run.
             if (!empty($rule->dry_run)) {
                 debugging('Rule ' . $rule->id . ' is in dry-run mode, skipping', DEBUG_DEVELOPER);
                 continue;
             }
 
-            // Evaluar regla
+            // Evaluate rule.
             if (!rule_engine::check_rule($rule, $userid)) {
                 debugging('User ' . $userid . ' does not meet forum rule ' . $rule->id, DEBUG_DEVELOPER);
                 continue;
@@ -112,18 +143,18 @@ class observer {
                 continue;
             }
 
-            // Emitir insignia
+            // Issue badge.
             $badge->issue($userid);
 
-            // Registrar en log
+            // Register in log.
             $log = (object) [
-                'userid' => $userid,
-                'badgeid' => (int)$rule->badgeid,
-                'ruleid' => (int)$rule->id,
-                'courseid' => $courseid,
-                'timeissued' => time(),
+                'userid'        => $userid,
+                'badgeid'       => (int)$rule->badgeid,
+                'ruleid'        => (int)$rule->id,
+                'courseid'      => $courseid,
+                'timeissued'    => time(),
                 'bonus_applied' => !empty($rule->enable_bonus) ? 1 : 0,
-                'bonus_value' => !empty($rule->enable_bonus) ? (float)($rule->bonus_points ?? 0) : null,
+                'bonus_value'   => !empty($rule->enable_bonus) ? (float)($rule->bonus_points ?? 0) : null,
             ];
             $DB->insert_record('local_automatic_badges_log', $log);
 

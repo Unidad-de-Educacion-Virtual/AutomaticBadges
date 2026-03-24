@@ -1,5 +1,28 @@
 <?php
-// local/automatic_badges/pages/edit_rule.php
+// This file is part of local_automatic_badges - https://moodle.org/.
+//
+// local_automatic_badges is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// local_automatic_badges is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with local_automatic_badges.  If not, see <https://www.gnu.org/licenses/>.
+
+/**
+ * Edit rule page for local_automatic_badges.
+ *
+ * @package    local_automatic_badges
+ * @author     Daniela Alexandra Patiño Dávila
+ * @author     Cristian Julian Lamus Lamus
+ * @copyright  2026 Daniela Alexandra Patiño Dávila, Cristian Julian Lamus Lamus
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 
 require(__DIR__ . '/../../../config.php');
 require_once($CFG->dirroot . '/badges/lib.php');
@@ -38,22 +61,22 @@ if ($mform->is_cancelled()) {
     redirect(new moodle_url('/local/automatic_badges/course_settings.php', ['id' => $course->id]));
 }
 
-// === FORM SUBMISSION PROCESSING ===
+// Form submission processing.
 if ($data = $mform->get_data()) {
-    $isTestRun = !empty($data->testrule);
+    $istestrun = !empty($data->testrule);
 
-    // Usar rule_manager para procesar la regla
-    list($savedRuleId, $message, $notificationtype, $shouldTest) = rule_manager::process_rule_submission(
+    // Use rule_manager to process the rule.
+    [$savedruleid, $message, $notificationtype, $shouldtest] = rule_manager::process_rule_submission(
         $data,
         $course->id,
         $ruleid,
-        $isTestRun
+        $istestrun
     );
 
-    // Si es "Guardar y probar", redirigir a edit_rule con runtest=1
-    if ($shouldTest) {
+    // If "Save and test", redirect to edit_rule with runtest=1.
+    if ($shouldtest) {
         redirect(
-            new moodle_url('/local/automatic_badges/edit_rule.php', ['id' => $savedRuleId, 'runtest' => 1])
+            new moodle_url('/local/automatic_badges/edit_rule.php', ['id' => $savedruleid, 'runtest' => 1])
         );
     }
 
@@ -69,22 +92,21 @@ if ($data = $mform->get_data()) {
 $defaults = rule_manager::get_form_defaults($rule, $course->id);
 $mform->set_data($defaults);
 
-// === START PAGE OUTPUT ===
+// Start page output.
 echo $OUTPUT->header();
 echo $OUTPUT->heading(get_string('editrule', 'local_automatic_badges'), 2);
 
-// === DRY-RUN EVALUATION ===
-// If runtest=1 from URL (after saving from add_rule.php), evaluate using stored rule
+// Dry-run evaluation.
+// If runtest=1 from URL (after saving from add_rule.php), evaluate using stored rule.
 if ($runtest && !$data) {
     echo $OUTPUT->notification(
         get_string('dryrunresult_saverulefirst', 'local_automatic_badges'),
         \core\output\notification::NOTIFY_SUCCESS
     );
-    
+
     $results = \local_automatic_badges\dry_run_evaluator::evaluate($course->id, $rule);
     echo \local_automatic_badges\dry_run_evaluator::render_results($OUTPUT, $results);
 }
-
 
 $mform->display();
 

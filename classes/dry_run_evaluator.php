@@ -1,36 +1,57 @@
 <?php
-// local/automatic_badges/classes/dry_run_evaluator.php
+// This file is part of local_automatic_badges - https://moodle.org/.
+//
+// local_automatic_badges is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// local_automatic_badges is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with local_automatic_badges.  If not, see <https://www.gnu.org/licenses/>.
+
+/**
+ * Dry-run evaluator for local_automatic_badges.
+ *
+ * Provides logic to simulate rule execution and show theoretical winners.
+ *
+ * @package    local_automatic_badges
+ * @author     Daniela Alexandra Patiño Dávila
+ * @author     Cristian Julian Lamus Lamus
+ * @copyright  2026 Daniela Alexandra Patiño Dávila, Cristian Julian Lamus Lamus
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 
 namespace local_automatic_badges;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
- * Centralizes dry-run evaluation logic for badge rules.
- * Eliminates code duplication between add_rule and edit_rule pages.
+ * Evaluates dry-run scenarios for badge rules.
  */
 class dry_run_evaluator {
-
     /**
      * Evaluate a rule and return results for all students.
      *
-     * @param int $courseid Course ID
-     * @param object $config Rule configuration (from form data or DB record)
-     * @return array Results with keys: total, eligible, already, noteligible, badgename, activity
+     * @param int $courseid Course ID.
+     * @param object $config Rule configuration.
+     * @return array Results summary.
      */
     public static function evaluate(int $courseid, object $config): array {
-        global $CFG, $DB;
+        global $CFG;
 
         require_once($CFG->dirroot . '/badges/lib.php');
         require_once($CFG->libdir . '/gradelib.php');
 
         $result = [
-            'total' => 0,
-            'eligible' => [],
-            'already' => [],
-            'noteligible' => [],
-            'badgename' => '',
-            'activityname' => '',
+            'total'          => 0,
+            'eligible'       => [],
+            'already'        => [],
+            'noteligible'    => [],
+            'badgename'      => '',
+            'activityname'   => '',
             'criterion_type' => $config->criterion_type ?? 'grade',
         ];
 
@@ -48,7 +69,7 @@ class dry_run_evaluator {
 
         $result['activityname'] = $cm->get_formatted_name();
 
-        // Get students
+        // Get students.
         $users = helper::get_students_in_course($courseid);
         $userids = array_keys($users);
         $result['total'] = count($userids);
@@ -57,7 +78,7 @@ class dry_run_evaluator {
             return $result;
         }
 
-        // Get badge
+        // Get badge.
         $badgeid = (int)($config->badgeid ?? 0);
         if ($badgeid <= 0) {
             return $result;
@@ -66,7 +87,7 @@ class dry_run_evaluator {
         $badge = new \badge($badgeid);
         $result['badgename'] = format_string($badge->name);
 
-        // Evaluate based on criterion type
+        // Evaluate based on criterion type.
         $criterion = $config->criterion_type ?? 'grade';
         $eligibleusers = [];
 
@@ -85,7 +106,7 @@ class dry_run_evaluator {
                 break;
         }
 
-        // Separate already awarded
+        // Separate already awarded.
         foreach ($eligibleusers as $uid => $userdata) {
             if ($badge->is_issued($uid)) {
                 $result['already'][$uid] = $userdata;
@@ -94,14 +115,14 @@ class dry_run_evaluator {
             }
         }
 
-        // Collect not eligible
+        // Collect not eligible.
         foreach ($users as $uid => $u) {
             if (!isset($eligibleusers[$uid])) {
                 $detail = self::get_not_eligible_detail($courseid, $cm, $uid, $criterion, $config);
                 $result['noteligible'][$uid] = (object)[
-                    'id' => $uid,
+                    'id'       => $uid,
                     'fullname' => fullname($u),
-                    'detail' => $detail
+                    'detail'   => $detail,
                 ];
             }
         }
@@ -111,6 +132,13 @@ class dry_run_evaluator {
 
     /**
      * Evaluate grade-based criterion.
+     *
+     * @param int $courseid Course ID.
+     * @param \cm_info $cm Course module info.
+     * @param array $userids User IDs to evaluate.
+     * @param array $users User objects.
+     * @param object $config Rule config.
+     * @return array
      */
     private static function evaluate_grade(int $courseid, \cm_info $cm, array $userids, array $users, object $config): array {
         global $DB;
@@ -119,10 +147,7 @@ class dry_run_evaluator {
         $op = $config->grade_operator ?? '>=';
 
         $gradeitem = \grade_item::fetch([
-            'itemtype' => 'mod',
-            'itemmodule' => $cm->modname,
-            'iteminstance' => $cm->instance,
-            'courseid' => $courseid
+            'itemtype' => 'mod', 'itemmodule' => $cm->modname, 'iteminstance' => $cm->instance, 'courseid' => $courseid,
         ]);
 
         if (!$gradeitem) {
@@ -130,9 +155,9 @@ class dry_run_evaluator {
         }
 
         $opsql = self::sanitize_operator($op);
-        list($usql, $params) = $DB->get_in_or_equal($userids);
-        $sql = "SELECT gg.userid, gg.finalgrade 
-                FROM {grade_grades} gg 
+        [$usql, $params] = $DB->get_in_or_equal($userids);
+        $sql = "SELECT gg.userid, gg.finalgrade
+                FROM {grade_grades} gg
                 WHERE gg.itemid = ? AND gg.finalgrade $opsql ? AND gg.userid $usql";
         $params = array_merge([$gradeitem->id, $min], $params);
         $records = $DB->get_records_sql($sql, $params);
@@ -140,10 +165,11 @@ class dry_run_evaluator {
         $eligible = [];
         foreach ($records as $rec) {
             if (isset($users[$rec->userid])) {
+                $gradestr = get_string('grade', 'grades') . ': ' . round($rec->finalgrade, 2);
                 $eligible[$rec->userid] = (object)[
-                    'id' => $rec->userid,
+                    'id'       => $rec->userid,
                     'fullname' => fullname($users[$rec->userid]),
-                    'detail' => get_string('grade', 'grades') . ': ' . round($rec->finalgrade, 2)
+                    'detail'   => $gradestr,
                 ];
             }
         }
@@ -152,19 +178,31 @@ class dry_run_evaluator {
     }
 
     /**
-     * Evaluate forum-grade criterion (grade given to a forum activity).
-     * Reuses the same logic as grade but restricted to forum modules.
+     * Evaluate forum-grade criterion.
+     *
+     * @param int $courseid Course ID.
+     * @param \cm_info $cm Course module info.
+     * @param array $userids User IDs.
+     * @param array $users User objects.
+     * @param object $config Rule config.
+     * @return array
      */
     private static function evaluate_forum_grade(int $courseid, \cm_info $cm, array $userids, array $users, object $config): array {
         if ($cm->modname !== 'forum') {
             return [];
         }
-        // Delegate to the standard grade evaluator.
         return self::evaluate_grade($courseid, $cm, $userids, $users, $config);
     }
 
     /**
-     * Evaluate forum-based criterion.
+     * Evaluate forum-based participatory criterion.
+     *
+     * @param int $courseid Course ID.
+     * @param \cm_info $cm Course module info.
+     * @param array $userids User IDs.
+     * @param array $users User objects.
+     * @param object $config Rule config.
+     * @return array
      */
     private static function evaluate_forum(int $courseid, \cm_info $cm, array $userids, array $users, object $config): array {
         global $DB;
@@ -176,16 +214,16 @@ class dry_run_evaluator {
         $minposts = (int)($config->forum_post_count ?? 5);
         $counttype = $config->forum_count_type ?? 'all';
 
-        list($usql, $params) = $DB->get_in_or_equal($userids);
+        [$usql, $params] = $DB->get_in_or_equal($userids);
 
         $parentcondition = '';
         if ($counttype === 'topics') {
             $parentcondition = 'AND fp.parent = 0';
-        } elseif ($counttype === 'replies') {
+        } else if ($counttype === 'replies') {
             $parentcondition = 'AND fp.parent <> 0';
         }
 
-        $sql = "SELECT fp.userid, COUNT(*) as posts 
+        $sql = "SELECT fp.userid, COUNT(*) as posts
                 FROM {forum_posts} fp
                 JOIN {forum_discussions} fd ON fp.discussion = fd.id
                 WHERE fd.forum = ? AND fp.userid $usql AND fp.deleted = 0 $parentcondition
@@ -200,14 +238,14 @@ class dry_run_evaluator {
                 $stringkey = 'dryrunresult_forumdetail_posts';
                 if ($counttype === 'replies') {
                     $stringkey = 'dryrunresult_forumdetail_replies';
-                } elseif ($counttype === 'topics') {
+                } else if ($counttype === 'topics') {
                     $stringkey = 'dryrunresult_forumdetail_topics';
                 }
 
                 $eligible[$rec->userid] = (object)[
-                    'id' => $rec->userid,
+                    'id'       => $rec->userid,
                     'fullname' => fullname($users[$rec->userid]),
-                    'detail' => get_string($stringkey, 'local_automatic_badges', $rec->posts)
+                    'detail'   => get_string($stringkey, 'local_automatic_badges', $rec->posts),
                 ];
             }
         }
@@ -217,32 +255,39 @@ class dry_run_evaluator {
 
     /**
      * Evaluate submission-based criterion.
+     *
+     * @param int $courseid Course ID.
+     * @param \cm_info $cm Course module.
+     * @param array $userids User IDs.
+     * @param array $users User objects.
+     * @param object $config Rule config.
+     * @return array
      */
     private static function evaluate_submission(int $courseid, \cm_info $cm, array $userids, array $users, object $config): array {
         global $DB;
 
-        if (!in_array($cm->modname, ['assign', 'workshop'])) {
+        if (!in_array($cm->modname, ['assign', 'workshop'], true)) {
             return [];
         }
 
-        $reqSub = !empty($config->require_submitted);
-        $reqGrad = !empty($config->require_graded);
+        $reqsubmitted = !empty($config->require_submitted);
+        $reqgraded = !empty($config->require_graded);
 
-        list($usql, $params) = $DB->get_in_or_equal($userids);
+        [$usql, $params] = $DB->get_in_or_equal($userids);
 
-        if ($reqGrad) {
+        if ($reqgraded) {
             $sql = "SELECT s.userid, g.grade
                     FROM {assign_submission} s
                     JOIN {assign_grades} g ON s.assignment = g.assignment AND s.userid = g.userid
                     WHERE s.assignment = ? AND s.userid $usql AND g.grade >= 0";
-            if ($reqSub) {
+            if ($reqsubmitted) {
                 $sql .= " AND s.status = 'submitted'";
             }
         } else {
             $sql = "SELECT s.userid, s.status
                     FROM {assign_submission} s
                     WHERE s.assignment = ? AND s.userid $usql";
-            if ($reqSub) {
+            if ($reqsubmitted) {
                 $sql .= " AND s.status = 'submitted'";
             }
         }
@@ -252,13 +297,13 @@ class dry_run_evaluator {
         $eligible = [];
         foreach ($records as $rec) {
             if (isset($users[$rec->userid])) {
-                $detail = isset($rec->grade) 
-                    ? get_string('grade', 'grades') . ': ' . round($rec->grade, 2) 
+                $detail = isset($rec->grade)
+                    ? get_string('grade', 'grades') . ': ' . round($rec->grade, 2)
                     : ($rec->status ?? 'submitted');
                 $eligible[$rec->userid] = (object)[
-                    'id' => $rec->userid,
+                    'id'       => $rec->userid,
                     'fullname' => fullname($users[$rec->userid]),
-                    'detail' => $detail
+                    'detail'   => $detail,
                 ];
             }
         }
@@ -268,8 +313,21 @@ class dry_run_evaluator {
 
     /**
      * Get detail for why a user doesn't meet the criterion.
+     *
+     * @param int $courseid Course ID.
+     * @param \cm_info $cm Course module.
+     * @param int $userid User ID.
+     * @param string $criterion Criterion type.
+     * @param object $config Rule config.
+     * @return string
      */
-    private static function get_not_eligible_detail(int $courseid, \cm_info $cm, int $userid, string $criterion, object $config): string {
+    private static function get_not_eligible_detail(
+        int $courseid,
+        \cm_info $cm,
+        int $userid,
+        string $criterion,
+        object $config
+    ): string {
         global $DB, $CFG;
 
         require_once($CFG->libdir . '/gradelib.php');
@@ -288,27 +346,27 @@ class dry_run_evaluator {
 
             case 'forum':
                 $topiccount = $DB->get_field_sql(
-                    "SELECT COUNT(*) FROM {forum_posts} fp 
-                     JOIN {forum_discussions} fd ON fp.discussion = fd.id 
+                    "SELECT COUNT(*) FROM {forum_posts} fp
+                     JOIN {forum_discussions} fd ON fp.discussion = fd.id
                      WHERE fd.forum = ? AND fp.userid = ? AND fp.parent = 0 AND fp.deleted = 0",
                     [$cm->instance, $userid]
                 );
                 $replycount = $DB->get_field_sql(
-                    "SELECT COUNT(*) FROM {forum_posts} fp 
-                     JOIN {forum_discussions} fd ON fp.discussion = fd.id 
+                    "SELECT COUNT(*) FROM {forum_posts} fp
+                     JOIN {forum_discussions} fd ON fp.discussion = fd.id
                      WHERE fd.forum = ? AND fp.userid = ? AND fp.parent <> 0 AND fp.deleted = 0",
                     [$cm->instance, $userid]
                 );
-                return get_string('dryrunresult_forumdetail', 'local_automatic_badges', [
-                    'topics' => (int)$topiccount,
+                $summarydata = [
+                    'topics'  => (int)$topiccount,
                     'replies' => (int)$replycount,
-                    'total' => (int)$topiccount + (int)$replycount
-                ]);
+                    'total'   => (int)$topiccount + (int)$replycount,
+                ];
+                return get_string('dryrunresult_forumdetail', 'local_automatic_badges', $summarydata);
 
             case 'submission':
                 $submission = $DB->get_record('assign_submission', [
-                    'assignment' => $cm->instance,
-                    'userid' => $userid
+                    'assignment' => $cm->instance, 'userid' => $userid,
                 ], 'status', IGNORE_MISSING);
                 if ($submission) {
                     return get_string('submissionstatus_' . $submission->status, 'assign');
@@ -322,6 +380,10 @@ class dry_run_evaluator {
 
     /**
      * Render evaluation results as HTML.
+     *
+     * @param \core_renderer $output Moodle renderer.
+     * @param array $results Evaluation results.
+     * @return string HTML.
      */
     public static function render_results(\core_renderer $output, array $results): string {
         $html = '';
@@ -331,33 +393,48 @@ class dry_run_evaluator {
         $alreadycount = count($results['already']);
         $noteligiblecount = count($results['noteligible']);
 
-        // Main container
+        // Main container.
         $html .= \html_writer::start_div('generalbox boxaligncenter boxwidthwide');
 
-        // Header notification
+        // Header notification.
         $html .= $output->notification(
             $output->pix_icon('i/preview', '') . ' ' . get_string('testrule', 'local_automatic_badges'),
             \core\output\notification::NOTIFY_INFO
         );
 
-        // Statistics boxes
+        // Statistics boxes.
         $html .= \html_writer::start_div('d-flex flex-wrap justify-content-around text-center mb-3');
 
-        // Total students
+        // Total students.
         $html .= self::render_stat_box($totalstudents, get_string('enrolledusers', 'enrol'), '#e9ecef', '');
 
-        // Eligible
-        $html .= self::render_stat_box($eligiblecount, get_string('dryrunresult_eligible', 'local_automatic_badges'), '#d4edda', '#155724');
+        // Eligible students.
+        $html .= self::render_stat_box(
+            $eligiblecount,
+            get_string('dryrunresult_eligible', 'local_automatic_badges'),
+            '#d4edda',
+            '#155724'
+        );
 
-        // Already awarded
-        $html .= self::render_stat_box($alreadycount, get_string('dryrunresult_already', 'local_automatic_badges'), '#fff3cd', '#856404');
+        // Already awarded.
+        $html .= self::render_stat_box(
+            $alreadycount,
+            get_string('dryrunresult_already', 'local_automatic_badges'),
+            '#fff3cd',
+            '#856404'
+        );
 
-        // Not eligible
-        $html .= self::render_stat_box($noteligiblecount, get_string('dryrunresult_noteligible', 'local_automatic_badges'), '#f8d7da', '#721c24');
+        // Not eligible.
+        $html .= self::render_stat_box(
+            $noteligiblecount,
+            get_string('dryrunresult_noteligible', 'local_automatic_badges'),
+            '#f8d7da',
+            '#721c24'
+        );
 
         $html .= \html_writer::end_div();
 
-        // Details accordion
+        // Details accordion.
         $html .= self::render_details_section($output, $results);
 
         $html .= \html_writer::end_div();
@@ -367,6 +444,12 @@ class dry_run_evaluator {
 
     /**
      * Render a statistics box.
+     *
+     * @param int $count The count.
+     * @param string $label The label.
+     * @param string $bg Background color.
+     * @param string $color Text color.
+     * @return string
      */
     private static function render_stat_box(int $count, string $label, string $bg, string $color): string {
         $style = "background: $bg; border-radius: 8px; min-width: 100px;";
@@ -385,38 +468,59 @@ class dry_run_evaluator {
 
     /**
      * Render the details section with user lists.
+     *
+     * @param \core_renderer $output Moodle renderer.
+     * @param array $results Results.
+     * @return string
      */
     private static function render_details_section(\core_renderer $output, array $results): string {
         $html = '';
 
         $html .= \html_writer::start_tag('details', ['class' => 'mt-3']);
-        $html .= \html_writer::tag('summary', 
+        $html .= \html_writer::tag(
+            'summary',
             $output->pix_icon('i/info', '') . ' ' . get_string('dryrunresult_details', 'local_automatic_badges'),
             ['style' => 'cursor: pointer; font-weight: bold;']
         );
 
         $html .= \html_writer::start_div('p-3 border rounded bg-white mt-2');
 
-        // Rule summary
-        $html .= \html_writer::tag('h6', 
+        // Rule summary.
+        $html .= \html_writer::tag(
+            'h6',
             $output->pix_icon('i/settings', '') . ' ' . get_string('rulepreview', 'local_automatic_badges'),
             ['class' => 'mb-3']
         );
 
-        // User tables
+        // User tables.
         if (!empty($results['eligible'])) {
-            $html .= self::render_user_list($output, $results['eligible'], 
-                'dryrunresult_eligible', 'success', '#d4edda');
+            $html .= self::render_user_list(
+                $output,
+                $results['eligible'],
+                'dryrunresult_eligible',
+                'success',
+                '#d4edda'
+            );
         }
 
         if (!empty($results['already'])) {
-            $html .= self::render_user_list($output, $results['already'], 
-                'dryrunresult_already', 'warning', '#fff3cd');
+            $html .= self::render_user_list(
+                $output,
+                $results['already'],
+                'dryrunresult_already',
+                'warning',
+                '#fff3cd'
+            );
         }
 
         if (!empty($results['noteligible'])) {
-            $html .= self::render_user_list($output, $results['noteligible'], 
-                'dryrunresult_noteligible', 'danger', '#f8d7da');
+            $html .= self::render_user_list(
+                $output,
+                $results['noteligible'],
+                'dryrunresult_noteligible',
+                'danger',
+                '#f8d7da'
+            );
         }
 
         if (empty($results['eligible']) && empty($results['already']) && empty($results['noteligible'])) {
@@ -434,13 +538,27 @@ class dry_run_evaluator {
 
     /**
      * Render a list of users with their details.
+     *
+     * @param \core_renderer $output Moodle renderer.
+     * @param array $users List of user results.
+     * @param string $stringkey Lang string key.
+     * @param string $badgeclass Bootstrap badge class.
+     * @param string $bg Background color.
+     * @return string
      */
-    private static function render_user_list(\core_renderer $output, array $users, string $stringkey, string $badgeclass, string $bg): string {
+    private static function render_user_list(
+        \core_renderer $output,
+        array $users,
+        string $stringkey,
+        string $badgeclass,
+        string $bg
+    ): string {
         $count = count($users);
         $style = "border-left-width: 4px !important; background: $bg;";
 
         $html = \html_writer::start_div("mt-3 p-2 border-left border-$badgeclass", ['style' => $style]);
-        $html .= \html_writer::tag('h6', 
+        $html .= \html_writer::tag(
+            'h6',
             $output->pix_icon('i/user', '') . ' ' . get_string($stringkey, 'local_automatic_badges') . " ($count)",
             ['class' => 'mb-2']
         );
@@ -463,10 +581,13 @@ class dry_run_evaluator {
 
     /**
      * Sanitize SQL operator.
+     *
+     * @param string $op Operator string.
+     * @return string
      */
     private static function sanitize_operator(string $op): string {
         $valid = ['>', '>=', '<', '<=', '==', '='];
-        if (!in_array($op, $valid)) {
+        if (!in_array($op, $valid, true)) {
             return '>=';
         }
         return $op === '==' ? '=' : $op;
