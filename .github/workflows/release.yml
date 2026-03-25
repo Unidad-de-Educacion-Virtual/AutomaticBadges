@@ -1,0 +1,50 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build local_automatic_badges.zip
+        run: |
+          # Copia el contenido en una carpeta llamada local_automatic_badges
+          mkdir -p /tmp/build/local_automatic_badges
+          cp -r . /tmp/build/local_automatic_badges/
+
+          # Elimina archivos que no deben ir en el plugin
+          rm -rf /tmp/build/local_automatic_badges/.git
+          rm -rf /tmp/build/local_automatic_badges/.github
+          rm -rf /tmp/build/local_automatic_badges/.vscode
+          rm -rf /tmp/build/local_automatic_badges/docs
+          rm -f  /tmp/build/local_automatic_badges/debug.log
+          rm -f  /tmp/build/local_automatic_badges/debug_rules.php
+          rm -f  /tmp/build/local_automatic_badges/test_logic.php
+          rm -f  /tmp/build/local_automatic_badges/build_zip.php
+          rm -f  /tmp/build/local_automatic_badges/extract_comments.php
+          rm -f  /tmp/build/local_automatic_badges/salida.txt
+          rm -f  /tmp/build/local_automatic_badges/.gitignore
+          rm -f  /tmp/build/local_automatic_badges/local_automatic_badges.zip
+
+          # Crea el ZIP con la carpeta raíz correcta
+          cd /tmp/build
+          zip -r local_automatic_badges.zip local_automatic_badges/
+
+          # Mueve el ZIP al workspace para que el paso siguiente lo encuentre
+          mv local_automatic_badges.zip $GITHUB_WORKSPACE/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Release ${{ github.ref_name }}"
+          files: local_automatic_badges.zip
+          generate_release_notes: true

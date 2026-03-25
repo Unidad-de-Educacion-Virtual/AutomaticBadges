@@ -42,14 +42,14 @@
  */
 // Phpcs:disable -- standalone CLI build script, not a Moodle page.
 
-$pluginName  = 'automatic_badges';
+$pluginName  = 'local_automatic_badges';
 $sourceDir   = __DIR__;
-$outputZip   = $sourceDir . DIRECTORY_SEPARATOR . $pluginName . '_release.zip';
+$outputZip   = $sourceDir . DIRECTORY_SEPARATOR . $pluginName . '.zip';
 
 // Files and directories to exclude.
 $excludeDirs = ['.git', '.vscode', '.idea', 'node_modules', 'tests', 'docs'];
 $excludeFiles = [
-    'build.ps1', 'build_zip.php', '.gitignore', 'debug.log', 'debug_post.txt', 'debug_rules.php', 'syntax_error.txt', 'temp.html', 'test_logic.php', 'automatic_badges_release.zip', 'GLOBAL_RULES_FEATURE.md', 'TASK_LOCAL_LIBRARIES.md', 'TECHNICAL_ANALYSIS_AWARDING.md', 'README.md',
+    'build.ps1', 'build_zip.php', '.gitignore', 'debug.log', 'debug_post.txt', 'debug_rules.php', 'syntax_error.txt', 'temp.html', 'test_logic.php', 'local_automatic_badges.zip', 'GLOBAL_RULES_FEATURE.md', 'TASK_LOCAL_LIBRARIES.md', 'TECHNICAL_ANALYSIS_AWARDING.md', 'README.md', 'salida.txt', 'extract_comments.php',
 ];
 
 if (file_exists($outputZip)) {
