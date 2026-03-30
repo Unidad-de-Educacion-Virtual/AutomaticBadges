@@ -210,7 +210,7 @@ class rule_engine {
         $gradeitemid = (int)$rule->activityid;
         $courseid    = (int)$rule->courseid;
 
-        $gradeitem = $DB->get_record('grade_item', ['id' => $gradeitemid, 'courseid' => $courseid]);
+        $gradeitem = $DB->get_record('grade_items', ['id' => $gradeitemid, 'courseid' => $courseid]);
         if (!$gradeitem) {
             return false;
         }

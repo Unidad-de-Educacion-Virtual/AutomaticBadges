@@ -195,8 +195,8 @@ class helper {
         global $DB;
 
         $sql = "SELECT gi.id, gi.itemname, gi.itemtype, gi.itemmodule, gc.fullname AS catname
-                  FROM {grade_item} gi
-             LEFT JOIN {grade_category} gc ON gc.id = gi.iteminstance AND gi.itemtype = 'category'
+                  FROM {grade_items} gi
+             LEFT JOIN {grade_categories} gc ON gc.id = gi.iteminstance AND gi.itemtype = 'category'
                  WHERE gi.courseid = :courseid
                    AND gi.itemtype != 'course'
               ORDER BY gi.sortorder ASC, gi.itemname ASC";

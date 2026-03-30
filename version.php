@@ -26,7 +26,7 @@
 defined('MOODLE_INTERNAL') || die();
 
 $plugin->component = 'local_automatic_badges';
-$plugin->version = 2026032600;
+$plugin->version = 2026033001;
 $plugin->requires = 2024100700; // Moodle 4.5+.
 $plugin->maturity = MATURITY_STABLE;
 $plugin->release = '1.0.2';
