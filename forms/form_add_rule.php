@@ -816,6 +816,33 @@ require(['jquery'], function($) {
             updateGradeFieldsVisibility();
             buildPreviewText();
         });
+
+        // Client-side guard: block save if range operator but grade_max is empty.
+        $('form').on('submit', function(e) {
+            var criterion = $('#id_criterion_type').val();
+            var isGradeCriterion = (criterion === 'grade' || criterion === 'forum_grade' || criterion === 'grade_item');
+            if (isGradeCriterion && $('#id_grade_operator').val() === 'range') {
+                var gradeMaxVal = $.trim($('#id_grade_max').val());
+                if (gradeMaxVal === '' || gradeMaxVal === null) {
+                    e.preventDefault();
+                    // Highlight the field.
+                    var gradeMaxField = $('#id_grade_max');
+                    gradeMaxField.addClass('is-invalid').focus();
+                    if (!$('#ab_grademax_error').length) {
+                        gradeMaxField.after(
+                            '<div id="ab_grademax_error" class="invalid-feedback" style="display:block; color:#dc3545;">' +
+                            'Este campo es obligatorio cuando el operador es "Dentro de un rango".' +
+                            '</div>'
+                        );
+                    }
+                    gradeMaxField.one('input', function() {
+                        $(this).removeClass('is-invalid');
+                        $('#ab_grademax_error').remove();
+                    });
+                    return false;
+                }
+            }
+        });
          // Pre-select existing value when editing.
         var preselectedId   = parseInt(hiddenInput.val(), 10) || 0;
         var preselectedName = '';
@@ -893,11 +920,16 @@ JS
             }
 
             if (isset($data['grade_operator']) && $data['grade_operator'] === 'range') {
-                $grademax = isset($data['grade_max']) ? (float)$data['grade_max'] : 100.0;
-                if ($grademax < 0 || $grademax > 100) {
-                    $errors['grade_max'] = get_string('grademax_invalid', 'local_automatic_badges');
-                } else if ($grademax < $grademin) {
-                    $errors['grade_max'] = get_string('grademax_lower', 'local_automatic_badges');
+                // grade_max is required when operator is range.
+                if (!isset($data['grade_max']) || $data['grade_max'] === '' || $data['grade_max'] === null) {
+                    $errors['grade_max'] = get_string('required');
+                } else {
+                    $grademax = (float)$data['grade_max'];
+                    if ($grademax < 0 || $grademax > 100) {
+                        $errors['grade_max'] = get_string('grademax_invalid', 'local_automatic_badges');
+                    } else if ($grademax <= $grademin) {
+                        $errors['grade_max'] = get_string('grademax_lower', 'local_automatic_badges');
+                    }
                 }
             }
         }

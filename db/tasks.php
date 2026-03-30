@@ -30,8 +30,8 @@ $tasks = [
     [
         'classname' => 'local_automatic_badges\task\award_badges_task',
         'blocking'  => 0,
-        'minute'    => 'R',
-        'hour'      => 'R',
+        'minute'    => '*/5',
+        'hour'      => '*',
         'day'       => '*',
         'dayofweek' => '*',
         'month'     => '*',

@@ -63,13 +63,14 @@ class rule_manager {
         $record->activityid = (!$isglobalrule && isset($data->activityid)) ? (int)$data->activityid : null;
 
         // Grade fields.
-        $record->grade_min = ($criterion === 'grade' && isset($data->grade_min))
+        $isgradecriterion = in_array($criterion, ['grade', 'forum_grade', 'grade_item']);
+        $record->grade_min = ($isgradecriterion && isset($data->grade_min))
             ? (float)$data->grade_min
             : null;
-        $record->grade_max = ($criterion === 'grade' && !empty($data->grade_max))
+        $record->grade_max = ($isgradecriterion && isset($data->grade_max) && $data->grade_max !== '' && $data->grade_max !== null)
             ? (float)$data->grade_max
             : null;
-        $record->grade_operator = ($criterion === 'grade' && isset($data->grade_operator))
+        $record->grade_operator = ($isgradecriterion && isset($data->grade_operator))
             ? $data->grade_operator
             : '>=';
 
