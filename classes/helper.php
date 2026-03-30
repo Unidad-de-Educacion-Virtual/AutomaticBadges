@@ -32,40 +32,24 @@ namespace local_automatic_badges;
  * Helper class to provide central logic for the plugin.
  */
 class helper {
-    /**
-     * Returns true if the course has automation enabled via a custom field.
-     *
-     * @param int|object $courseorid  Course ID or stdClass with ->id.
-     * @param string $shortname Custom field shortname.
-     * @return bool
-     */
     public static function is_enabled_course($courseorid, string $shortname = 'automatic_badges_enabled'): bool {
+        global $DB;
+        
         // Normalize to integer ID.
         $courseid = is_object($courseorid) ? (int)$courseorid->id : (int)$courseorid;
 
         try {
-            // For courses, use the specific handler.
-            $handler = \core_course\customfield\course_handler::create();
-
-            // Only visible fields.
-            $dataitems = $handler->get_instance_data($courseid, true);
-
-            foreach ($dataitems as $data) {
-                $field = $data->get_field();
-                if (!$field) {
-                    continue;
-                }
-                if ($field->get('shortname') === $shortname) {
-                    $value = $data->get_value();
-                    // Normalize to boolean.
-                    $istrue = in_array((string)$value, ['1', 'true', 'on', 'yes'], true);
-                    return $istrue || $value === 1 || $value === true;
-                }
+            // Check local configuration table.
+            $config = $DB->get_record('local_automatic_badges_coursecfg', ['courseid' => $courseid]);
+            if ($config) {
+                return !empty($config->enabled);
             }
         } catch (\Throwable $e) {
             // Log in cron output.
             mtrace('is_enabled_course error (courseid ' . $courseid . '): ' . $e->getMessage());
         }
+        
+        // Default to false if not configured.
         return false;
     }
 

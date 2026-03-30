@@ -923,8 +923,13 @@ function render_testlogic_tab($courseid, $OUTPUT, $DB, $PAGE, $context) {
 
             // Get Real Grade.
             $gradeinfo = _testlogic_get_grade($courseid, $userid, $cm);
-            if ($rule->criterion_type === 'grade') {
-                 $gradeinfo .= " (Mínimo: {$rule->grade_min}%)";
+            $isgradecriterion = in_array($rule->criterion_type, ['grade', 'forum_grade', 'grade_item']);
+            if ($isgradecriterion) {
+                if (($rule->grade_operator ?? '>=') === 'range' && !empty($rule->grade_max)) {
+                    $gradeinfo .= " (Rango: {$rule->grade_min}% a {$rule->grade_max}%)";
+                } else {
+                    $gradeinfo .= " (Mínimo: {$rule->grade_min}%)";
+                }
             } else if ($rule->criterion_type === 'forum') {
                  $gradeinfo = "<span class='text-muted'>Revisado por posts</span>";
             } else if ($rule->is_global_rule) {

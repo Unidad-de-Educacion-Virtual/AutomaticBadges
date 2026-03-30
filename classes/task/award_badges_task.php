@@ -67,7 +67,7 @@ class award_badges_task extends \core\task\scheduled_task {
             }
 
             $students = \local_automatic_badges\helper::get_students_in_course((int)$courseid);
-            debugging('Cron: Students in course ' . $courseid . ': ' . count($students), DEBUG_DEVELOPER);
+            mtrace('    Students in course ' . $courseid . ': ' . count($students));
 
             foreach ($students as $student) {
                 foreach ($rules as $rule) {
@@ -76,7 +76,7 @@ class award_badges_task extends \core\task\scheduled_task {
                         continue;
                     }
 
-                    $badge = new \badge((int)$rule->badgeid);
+                    $badge = new \core_badges\badge((int)$rule->badgeid);
                     if ($badge->is_issued((int)$student->id)) {
                         continue;
                     }
@@ -105,9 +105,9 @@ class award_badges_task extends \core\task\scheduled_task {
                         );
                     }
 
-                    $debugmsg = 'Cron: Awarded badge ' . $rule->badgeid . ' to user ' . $student->id;
+                    $debugmsg = '    Awarded badge ' . $rule->badgeid . ' to user ' . $student->id;
                     $debugmsg .= ' (course ' . $courseid . ')';
-                    debugging($debugmsg, DEBUG_DEVELOPER);
+                    mtrace($debugmsg);
                 }
             }
         }

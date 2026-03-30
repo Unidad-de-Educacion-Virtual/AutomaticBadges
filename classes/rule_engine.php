@@ -189,7 +189,8 @@ class rule_engine {
         }
 
         $operator = $rule->grade_operator ?? '>=';
-        return self::compare_grade($currentgrade, $operator, (float)$rule->grade_min);
+        $grademax = isset($rule->grade_max) ? (float)$rule->grade_max : null;
+        return self::compare_grade($currentgrade, $operator, (float)$rule->grade_min, $grademax);
     }
 
     /**
@@ -228,7 +229,8 @@ class rule_engine {
         $percentage = ($range > 0) ? (($rawgrade - $grademin) / $range) * 100.0 : 0.0;
 
         $operator = $rule->grade_operator ?? '>=';
-        return self::compare_grade($percentage, $operator, (float)$rule->grade_min);
+        $grademax = isset($rule->grade_max) ? (float)$rule->grade_max : null;
+        return self::compare_grade($percentage, $operator, (float)$rule->grade_min, $grademax);
     }
 
     /**
@@ -260,7 +262,8 @@ class rule_engine {
         }
 
         $operator = $rule->grade_operator ?? '>=';
-        return self::compare_grade($currentgrade, $operator, (float)$rule->grade_min);
+        $grademax = isset($rule->grade_max) ? (float)$rule->grade_max : null;
+        return self::compare_grade($currentgrade, $operator, (float)$rule->grade_min, $grademax);
     }
 
     /**
@@ -271,7 +274,7 @@ class rule_engine {
      * @param float $threshold Valor de referencia
      * @return bool
      */
-    private static function compare_grade(float $grade, string $operator, float $threshold): bool {
+    private static function compare_grade(float $grade, string $operator, float $threshold, ?float $grademax = null): bool {
         switch ($operator) {
             case '>=':
                 return $grade >= $threshold;
@@ -283,6 +286,12 @@ class rule_engine {
                 return $grade < $threshold;
             case '==':
                 return abs($grade - $threshold) < 0.01; // Float comparison with tolerance.
+            case 'range':
+                // Both min and max must be defined; grade must be within [min, max].
+                if ($grademax === null) {
+                    return $grade >= $threshold;
+                }
+                return $grade >= $threshold && $grade <= $grademax;
             default:
                 return $grade >= $threshold; // Default to >= for backward compatibility.
         }
