@@ -222,5 +222,17 @@ function xmldb_local_automatic_badges_upgrade(int $oldversion): bool {
         upgrade_plugin_savepoint(true, 2026011801, 'local', 'automatic_badges');
     }
 
+    // Fix missing grade_max from fresh installs that used the outdated install.xml.
+    if ($oldversion < 2026033003) {
+        $table = new xmldb_table('local_automatic_badges_rules');
+        $field = new xmldb_field('grade_max', XMLDB_TYPE_NUMBER, '10,2', null, null, null, null, 'grade_min');
+
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        upgrade_plugin_savepoint(true, 2026033003, 'local', 'automatic_badges');
+    }
+
     return true;
 }

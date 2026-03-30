@@ -14,6 +14,7 @@
         <FIELD NAME="activity_type" TYPE="char" LENGTH="50" NOTNULL="false" COMMENT="Tipo de actividad para reglas globales (assign, quiz, forum, etc)"/>
         <FIELD NAME="activityid" TYPE="int" LENGTH="10" NOTNULL="false"/>
         <FIELD NAME="grade_min" TYPE="number" LENGTH="10" DECIMALS="2" NOTNULL="false"/>
+        <FIELD NAME="grade_max" TYPE="number" LENGTH="10" DECIMALS="2" NOTNULL="false"/>
         <FIELD NAME="grade_operator" TYPE="char" LENGTH="5" NOTNULL="true" DEFAULT="&gt;=" COMMENT="Comparison operator for grade evaluation: &gt;=, &gt;, &lt;=, &lt;, =="/>
         <FIELD NAME="forum_post_count" TYPE="int" LENGTH="10" NOTNULL="false"/>
         <FIELD NAME="forum_count_type" TYPE="char" LENGTH="20" NOTNULL="false" DEFAULT="all" COMMENT="Type of posts to count: all, replies, topics"/>

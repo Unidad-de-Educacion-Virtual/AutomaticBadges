@@ -81,6 +81,11 @@ class award_badges_task extends \core\task\scheduled_task {
                         continue;
                     }
 
+                    // Apply custom notification message if defined.
+                    if (!empty($rule->notify_message)) {
+                        $badge->message = $rule->notify_message;
+                    }
+
                     // Award badge.
                     $badge->issue((int)$student->id);
 

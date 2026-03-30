@@ -144,6 +144,10 @@ if (!empty($testaction) && $currenttab === 'testlogic' && confirm_sesskey()) {
                     if (!$badge->is_issued($u->id)) {
                         // Capture any debugging output (e.g. "Error calling message processor email").
                         // So it doesn't break the redirect with "Error de salida".
+                        if (!empty($rule->notify_message)) {
+                            $badge->message = $rule->notify_message;
+                        }
+
                         ob_start();
                         $badge->issue($u->id);
                         ob_end_clean();
@@ -186,6 +190,10 @@ if (!empty($testaction) && $currenttab === 'testlogic' && confirm_sesskey()) {
         if ($rulepasses) {
             $badge = new \core_badges\badge($rule->badgeid);
             if (!$badge->is_issued($targetuserid)) {
+                if (!empty($rule->notify_message)) {
+                    $badge->message = $rule->notify_message;
+                }
+
                 ob_start();
                 $badge->issue($targetuserid);
                 ob_end_clean();
@@ -327,6 +335,7 @@ function render_rules_tab($courseid, $OUTPUT, $PAGE, $DB, $page, $perpage, $sort
     echo html_writer::start_tag('tr');
     echo html_writer::tag('th', '', ['style' => 'width: 50px;']);
     echo html_writer::tag('th', get_string('badgenamecolumn', 'local_automatic_badges'));
+    echo html_writer::tag('th', 'Actividad');
     echo html_writer::tag('th', get_string('criterion_type', 'local_automatic_badges'));
     echo html_writer::tag('th', get_string('rulestatus', 'local_automatic_badges'));
     echo html_writer::tag('th', get_string('actions'), ['style' => 'text-align: center;']);
@@ -341,6 +350,15 @@ function render_rules_tab($courseid, $OUTPUT, $PAGE, $DB, $page, $perpage, $sort
         $ruleenabled = isset($rule->enabled) ? (int)$rule->enabled : 1;
         $rulestatustext = get_string($ruleenabled ? 'ruleenabled' : 'ruledisabled', 'local_automatic_badges');
         $criteriatype = ucfirst($rule->criterion_type);
+
+        if ($rule->is_global_rule) {
+            $activityname = "<strong>Global:</strong> " . ucfirst($rule->activity_type);
+        } else if ($rule->activityid) {
+            $cm = get_coursemodule_from_id(null, $rule->activityid, $courseid, false, IGNORE_MISSING);
+            $activityname = $cm ? format_string($cm->name) : "<span class='text-danger'>Desconocida</span>";
+        } else {
+            $activityname = "-";
+        }
 
         if (!$badgerec) {
             // Badge was deleted, show a warning instead of the image/link.
@@ -437,6 +455,7 @@ function render_rules_tab($courseid, $OUTPUT, $PAGE, $DB, $page, $perpage, $sort
         echo html_writer::start_tag('tr');
         echo html_writer::tag('td', $badgeimagetag, ['class' => 'text-center align-middle']);
         echo html_writer::tag('td', $badgenamedisplay, ['class' => 'align-middle']);
+        echo html_writer::tag('td', $activityname, ['class' => 'align-middle']);
         echo html_writer::tag('td', $criteriatype, ['class' => 'align-middle']);
         echo html_writer::tag('td', $statusbadge, ['class' => 'align-middle']);
         echo html_writer::tag('td', $actions, ['style' => 'text-align: center;', 'class' => 'align-middle']);
