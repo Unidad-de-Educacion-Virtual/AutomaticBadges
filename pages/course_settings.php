@@ -951,6 +951,19 @@ function render_testlogic_tab($courseid, $OUTPUT, $DB, $PAGE, $context) {
                 }
             } else if ($rule->criterion_type === 'forum') {
                  $gradeinfo = "<span class='text-muted'>Revisado por posts</span>";
+            } else if ($rule->criterion_type === 'submission' && $cm && $cm->modname === 'assign') {
+                 global $DB;
+                 $submission = $DB->get_record('assign_submission', [
+                     'assignment' => $cm->instance, 
+                     'userid' => $userid, 
+                     'latest' => 1
+                 ]);
+                 if ($submission && $submission->status === 'submitted') {
+                     $gradeinfo = '<span class="text-success"><i class="fa fa-clock mr-1"></i>Entregada:</span> ' . 
+                                  userdate($submission->timemodified, get_string('strftimedatetimeshort', 'core_langconfig'));
+                 } else {
+                     $gradeinfo = '<span class="text-muted">Sin entrega registrada</span>';
+                 }
             } else if ($rule->is_global_rule) {
                  $gradeinfo = "<span class='text-muted'>Regla Global ({$rule->activity_type})</span>";
                  $activityname = "Múltiples";

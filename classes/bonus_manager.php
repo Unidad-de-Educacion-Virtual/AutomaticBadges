@@ -140,17 +140,6 @@ class bonus_manager {
             return false;
         }
 
-        // Check if bonus was already applied for this user+rule.
-        $already = $DB->record_exists('local_automatic_badges_log', [
-            'userid' => $userid,
-            'ruleid' => (int)$rule->id,
-            'bonus_applied' => 1,
-        ]);
-
-        if ($already) {
-            return false;
-        }
-
         // Build a readable name for the grade item.
         $badge = $DB->get_record('badge', ['id' => (int)$rule->badgeid], 'name', IGNORE_MISSING);
         $rulename = $badge ? $badge->name : 'Regla #' . $rule->id;

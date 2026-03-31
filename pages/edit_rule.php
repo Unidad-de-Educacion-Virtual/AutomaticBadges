@@ -96,6 +96,12 @@ $mform->set_data($defaults);
 echo $OUTPUT->header();
 echo $OUTPUT->heading(get_string('editrule', 'local_automatic_badges'), 2);
 
+// Display warning if rule has already issued a badge.
+if ($DB->record_exists('local_automatic_badges_log', ['ruleid' => $ruleid])) {
+    $warnmsg = "<strong>Advertencia:</strong> Esta regla ya ha otorgado la insignia a uno o más estudiantes. Editar sus criterios o condiciones puede provocar graves inconsistencias entre los estudiantes que ya la obtuvieron de forma retrospectiva con la configuración anterior y los futuros evaluados con la nueva versión de esta regla.<br><br><strong>Recomendación:</strong> Antes de modificar su funcionamiento o tipo de criterio y guardarla, dirígete a la administración de insignias nativa del curso y elimina la insignia (o revócasela a los estudiantes) para garantizar equidad.";
+    echo html_writer::div($warnmsg, 'alert alert-warning');
+}
+
 // Dry-run evaluation.
 // If runtest=1 from URL (after saving from add_rule.php), evaluate using stored rule.
 if ($runtest && !$data) {
